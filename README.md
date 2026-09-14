@@ -1,0 +1,47 @@
+# CleanTech Advisor (V1 scaffold)
+
+UK-first AI Sustainability & CleanTech Advisor — GreenScore, SolarScore, Energy Now,
+and an AI Sustainability Advisor. See `PRODUCT_SPEC.md` for the product spec and
+`ARCHITECTURE.md` for the technical design.
+
+## Status
+This is a **Phase 0 + Phase 1** scaffold: project setup, docs, testing foundation,
+database schema, and the postcode/location service are implemented. Everything
+else in `ROADMAP.md` is not yet built. See `PROGRESS.md` for the authoritative
+current state.
+
+> This scaffold was generated without network access (no `npm install` or
+> `npm test` could be run in the build environment). Run the verification steps
+> below yourself before trusting that anything works.
+
+## Setup
+```bash
+npm install
+cp .env.example .env.local
+# edit .env.local with a real DATABASE_URL etc.
+npm run db:generate
+npm run db:migrate   # requires a running Postgres instance
+npm run typecheck
+npm run test
+npm run dev
+```
+
+## Project structure
+See `ARCHITECTURE.md` → "Layering" section.
+
+## Testing philosophy
+Adapters are tested against recorded fixtures (`tests/fixtures/`), not live
+third-party APIs, so `npm test` works offline and in CI. A small number of
+integration tests are marked to optionally run against live endpoints — see
+`TESTING.md`.
+
+## Documentation index
+- `PRODUCT_SPEC.md` — what we're building and why
+- `ARCHITECTURE.md` — technical design and layering rules
+- `DATA_SOURCES.md` — every external data source, licence and status
+- `CALCULATIONS.md` — GreenScore / SolarScore formulas (added in Phase 4/5)
+- `SECURITY.md`, `PRIVACY.md` — added in the hardening phase
+- `API.md` — route/endpoint reference (grows each phase)
+- `ROADMAP.md` — phase-by-phase plan
+- `PROGRESS.md` — actual current state, updated every phase
+- `TESTING.md` — test strategy and fixture policy

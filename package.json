@@ -1,0 +1,42 @@
+{
+  "name": "cleantech-advisor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "UK-first AI Sustainability & CleanTech Advisor (GreenScore, SolarScore, Energy Now, AI Advisor)",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.20.0",
+    "next": "14.2.13",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "@types/react": "^18.3.3",
+    "@types/react-dom": "^18.3.0",
+    "@vitest/coverage-v8": "^2.1.1",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "14.2.13",
+    "msw": "^2.4.9",
+    "prisma": "^5.20.0",
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.1"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

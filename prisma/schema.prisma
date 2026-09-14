@@ -1,0 +1,191 @@
+// CleanTech Advisor — Phase 0 database schema.
+// Target: PostgreSQL. Run `npm run db:migrate` against a real Postgres instance.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/// A registered user. Minimal by design — see PRIVACY.md.
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  properties       Property[]
+  aiConversations  AiConversation[]
+}
+
+/// A property the user has assessed. A user can have more than one
+/// (Business Mode, deferred, will build on this multiplicity).
+model Property {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  label       String? // user-given nickname, e.g. "Home". Never a full address.
+  locationId  String
+  location    Location @relation(fields: [locationId], references: [id])
+  createdAt   DateTime @default(now())
+
+  energyProfiles    EnergyProfile[]
+  solarAssessments  SolarAssessment[]
+  greenScores       GreenScore[]
+  recommendations   Recommendation[]
+  actionPlans       ActionPlan[]
+
+  @@index([userId])
+}
+
+/// A resolved location. Deliberately stores only what's needed:
+/// outward postcode + coordinates, not a full address.
+model Location {
+  id              String   @id @default(cuid())
+  postcodeOutward String // e.g. "SW1A" — inward part not stored
+  latitude        Float
+  longitude       Float
+  adminDistrict   String?
+  region          String?
+  source          String // e.g. "postcodes.io"
+  resolvedAt      DateTime @default(now())
+
+  properties Property[]
+
+  @@index([postcodeOutward])
+}
+
+/// User-provided or inferred energy usage characteristics.
+model EnergyProfile {
+  id                String   @id @default(cuid())
+  propertyId        String
+  property          Property @relation(fields: [propertyId], references: [id])
+  annualUsageKwh    Float? // user-provided, optional
+  hasGasHeating     Boolean?
+  hasEvCharger      Boolean?
+  hasBattery        Boolean?
+  createdAt         DateTime @default(now())
+
+  @@index([propertyId])
+}
+
+/// Normalised solar assessment result (Phase 3 — PVGIS).
+model SolarAssessment {
+  id                    String   @id @default(cuid())
+  propertyId            String
+  property              Property @relation(fields: [propertyId], references: [id])
+  annualGenerationKwh   Float?
+  monthlyGenerationJson Json? // array of 12 modelled monthly values
+  solarResourceRating   String? // e.g. "High" | "Medium" | "Low"
+  assumptionsJson       Json // configurable assumptions used, never hard-coded silently
+  confidence            String // e.g. "modelled-estimate"
+  source                String // e.g. "PVGIS"
+  sourceTimestamp       DateTime
+  createdAt             DateTime @default(now())
+
+  @@index([propertyId])
+}
+
+/// A single retrieved carbon-intensity data point (current or forecast).
+model CarbonIntensityRecord {
+  id              String   @id @default(cuid())
+  regionCode      String?
+  periodFrom      DateTime
+  periodTo        DateTime
+  intensityValue  Float?
+  intensityIndex  String? // e.g. "low" | "moderate" | "high" | "very high"
+  isForecast      Boolean
+  generationMixJson Json?
+  source          String // e.g. "NESO Carbon Intensity API"
+  retrievedAt     DateTime @default(now())
+
+  @@index([periodFrom, periodTo])
+}
+
+/// A calculated, explainable GreenScore snapshot.
+model GreenScore {
+  id                String   @id @default(cuid())
+  propertyId        String
+  property          Property @relation(fields: [propertyId], references: [id])
+  totalScore        Int
+  componentScoresJson Json // { energyEfficiency, renewableOpportunity, carbonOptimisation, cleantechOpportunity, userProgress }
+  strengthsJson     Json
+  opportunitiesJson Json
+  assumptionsJson   Json
+  dataSourcesJson   Json
+  calculatedAt      DateTime @default(now())
+
+  @@index([propertyId])
+}
+
+/// A single recommended action.
+model Recommendation {
+  id              String   @id @default(cuid())
+  propertyId      String
+  property        Property @relation(fields: [propertyId], references: [id])
+  title           String
+  explanation     String
+  benefitCategory String // e.g. "cost" | "carbon" | "resilience"
+  estimatedImpact String? // free text, always labelled indicative
+  difficulty      String // "low" | "medium" | "high"
+  priority        Int
+  confidence      String
+  assumptionsJson Json
+  dataSourcesJson Json
+  createdAt       DateTime @default(now())
+
+  @@index([propertyId])
+}
+
+/// A generated, ordered action plan referencing recommendations.
+model ActionPlan {
+  id            String   @id @default(cuid())
+  propertyId    String
+  property      Property @relation(fields: [propertyId], references: [id])
+  itemsJson     Json // ordered list of recommendation IDs + notes
+  createdAt     DateTime @default(now())
+
+  @@index([propertyId])
+}
+
+/// A minimal record of an AI Advisor conversation — content minimised per PRIVACY.md.
+model AiConversation {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  contextJson   Json // the structured, non-personal grounding context sent to the AI
+  createdAt     DateTime @default(now())
+
+  @@index([userId])
+}
+
+/// Register of external data sources — mirrors DATA_SOURCES.md for programmatic checks.
+model DataSource {
+  id                     String   @id @default(cuid())
+  name                   String   @unique
+  officialUrl            String
+  licence                String
+  commercialUseStatus    String
+  attributionRequired    Boolean
+  refreshFrequency       String
+  lastVerifiedAt         DateTime?
+
+  refreshLogs SourceRefreshLog[]
+}
+
+/// Log of each time a data source was actually polled — for observability
+/// and to detect silent provider drift.
+model SourceRefreshLog {
+  id            String     @id @default(cuid())
+  dataSourceId  String
+  dataSource    DataSource @relation(fields: [dataSourceId], references: [id])
+  requestedAt   DateTime   @default(now())
+  succeeded     Boolean
+  errorMessage  String?
+  latencyMs     Int?
+
+  @@index([dataSourceId, requestedAt])
+}
