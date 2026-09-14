@@ -405,9 +405,67 @@ Energy Now" under the answer), not the raw context text itself.
 | 503 | The AI provider is unreachable, rate-limited, or misconfigured | "The AI Advisor is temporarily unavailable. Please try again shortly." |
 
 ### Screen
-`src/app/advisor/page.tsx` (Phase 7) — resolves a postcode through the full
-Phase 1/2/3/4/5/6 pipeline client-side, assembles the grounding context from
-the results, and provides the actual chat interface.
+`src/app/advisor/page.tsx` (Phase 7; now also calls `/api/action-plan/generate`
+as of Phase 8) — resolves a postcode through the full Phase 1/2/3/4/5/6/8
+pipeline client-side, assembles the grounding context from the results, and
+provides the actual chat interface.
+
+---
+
+## `POST /api/action-plan/generate`
+**Status: implemented (Phase 8).**
+
+Generates a prioritised action plan from whatever GreenScore/SolarScore/
+Energy Now results the caller supplies, via the pure `generateActionPlan`
+engine — see `CALCULATIONS.md`'s "Recommendation priority" section for the
+four V1 rules and the sort order. No service-layer wrapper, same reasoning
+as `/api/scores/green` and `/api/scores/solar`.
+
+### Request
+All fields are optional (an empty body returns an empty action list with an
+explanatory note, not an error) — same shapes as `/api/advisor/ask`'s
+`groundingContext` fields.
+```json
+{
+  "greenScore": { "...": "a GreenScoreResult, e.g. from POST /api/scores/green" },
+  "solarScore": { "...": "a SolarScoreResult, e.g. from POST /api/scores/solar" },
+  "energyNow": { "...": "the energyNow + interpretation shape from GET /api/energy/current" }
+}
+```
+
+### Response — success (200)
+```json
+{
+  "ok": true,
+  "actionPlan": {
+    "actions": [
+      {
+        "id": "shift-flexible-use",
+        "title": "Shift flexible electricity use to lower-carbon periods",
+        "explanation": "Later today (afternoon) may be a better time for flexible electricity use.",
+        "impactCategory": "carbon",
+        "estimatedImpact": { "annualKgCo2": null, "annualGBP": null, "note": "No specific figure is calculated..." },
+        "difficulty": "low",
+        "confidence": "medium",
+        "assumptions": ["This applies to flexible, discretionary electricity use only...", "This is based on a forecast, not a certainty..."],
+        "dataSources": ["NESO Carbon Intensity API (via Phase 2)"],
+        "suggestedNextStep": "Check the Energy Now screen before running flexible appliances...",
+        "priority": 1
+      }
+    ],
+    "notes": ["Recommendations are generated from structured application logic..."],
+    "calculatedAt": "2026-09-14T11:05:00.000Z"
+  }
+}
+```
+`actions` is always sorted by priority ascending (1 = highest). An empty
+array means no rule found a genuine signal to act on — check `notes` for why,
+never assume it means "everything is fine."
+
+### Response — failure
+| Status | Cause | Example `message` |
+|---|---|---|
+| 400 | Malformed body, or a supplied field didn't match the expected shape | "One or more provided fields did not match the expected shape." |
 
 ---
 
@@ -415,7 +473,6 @@ the results, and provides the actual chat interface.
 
 | Route | Phase | Purpose |
 |---|---|---|
-| `POST /api/action-plan/generate` | 8 | Generate a prioritised action plan |
 | `POST /api/auth/*` | 9 | Login/session endpoints |
 
 Each will be documented here, with the same request/response/error-status

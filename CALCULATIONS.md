@@ -223,16 +223,56 @@ where the underlying data is only a forecast.
 - **`forecastDisclaimer`** is likewise included on every result: "This is
   based on a forecast, not a certainty — actual grid conditions can change."
 
-## Recommendation priority (Phase 8)
-Recommendations are ordered by a deterministic priority function of:
-1. Estimated impact category weight (carbon > cost > resilience, configurable)
-2. Difficulty (lower difficulty ranks higher at equal impact)
-3. Confidence (higher-confidence recommendations rank above speculative ones
-   at equal impact/difficulty)
+## Recommendation priority (Phase 8 — implemented, see `src/server/calculations/actionPlan.ts`)
+Recommendations are ordered by a deterministic, three-key lexicographic sort
+(category first, difficulty only breaks a category tie, confidence only
+breaks a category+difficulty tie — not a weighted sum, which is a more
+literal reading of the three numbered criteria below than a combined score
+would be):
+1. Estimated impact category weight: `carbon` (3) > `cost` (2) >
+   `resilience` (1) > `informational` (0). `informational` (data-completion
+   nudges, e.g. "add your energy profile") was added when this phase was
+   implemented, since it only became necessary once a recommendation type
+   existed that has no real carbon/cost/resilience impact of its own.
+2. Difficulty (`low` > `medium` > `high` — lower difficulty ranks higher at
+   equal category).
+3. Confidence (`high` > `medium` > `low` — higher confidence ranks higher at
+   equal category and difficulty).
 
-The exact weighting function will be specified in code with unit tests when
-Phase 8 is implemented, following the same "expose the reason for the order"
-principle as GreenScore.
+### The four V1 rules
+Each fires only on a genuine signal already present in computed data — none
+of them recommend a specific purchase (e.g. "get an EV charger") on the
+strength of its *absence* alone, since V1 has no signal that a given
+household actually wants or needs one, and doing so would read as
+presumptuous rather than helpful:
+- **Investigate solar suitability** — fires whenever a `SolarScore` is
+  provided. Framed encouragingly when suitability isn't Low; framed as "not
+  a strong fit right now" (not omitted) when it is Low, since that's still
+  useful information. `estimatedImpact` is taken directly from SolarScore's
+  own emissions/financial figures — never recalculated — and is `null` (with
+  an explanatory note) when SolarScore itself didn't have a financial figure.
+- **Shift flexible electricity use to lower-carbon periods** — fires when
+  Energy Now's `flexibleUseSuggestion.available` is true. Never assigns a
+  quantified kg CO2 figure, since no per-household consumption data exists
+  to calculate one from — the note says so explicitly rather than guessing.
+- **Review household energy efficiency** — fires when GreenScore's
+  `energyEfficiency` component is included but scored below 70. Excluded
+  (not "low-scoring") efficiency data does NOT trigger this — that's a
+  different situation, handled by the next rule.
+- **Add more information to sharpen your GreenScore** — fires whenever any
+  GreenScore component was excluded for missing data. `impactCategory:
+  "informational"` and always sorts last, since it doesn't reduce emissions
+  or cost directly.
+
+### What every recommendation includes
+`title`, `explanation`, `impactCategory`, `estimatedImpact` (`annualKgCo2`,
+`annualGBP`, both nullable, plus an always-present `note` explaining what the
+numbers — or their absence — mean), `difficulty`, `confidence`,
+`assumptions` (carried from the source result where applicable),
+`dataSources`, `suggestedNextStep`, and `priority` (assigned after sorting,
+1 = highest). An empty action list (no GreenScore/SolarScore/EnergyNow data
+supplied at all) returns `{ actions: [], notes: [...] }` explaining why,
+never a generic non-personalised placeholder recommendation.
 
 ## What the AI Advisor is allowed to do with these numbers (Phase 7)
 The AI receives the *already-computed* `GreenScoreResult`, `SolarAssessment`,

@@ -23,12 +23,13 @@ src/server/adapters/          → One file per external data source. ONLY place
                                  that knows about a third-party API's shape.
 src/server/calculations/      → Pure, deterministic calculation/interpretation
                                  engines (GreenScore, SolarScore, Energy Now
-                                 interpretation) plus `mathUtils.ts` — small
-                                 shared helpers (`clamp`, `lerpScore`,
-                                 `levelFor`) used by more than one engine so
-                                 their interpolation and High/Medium/Low
-                                 bucketing can't silently drift apart. No I/O,
-                                 no network, no LLM calls — see CALCULATIONS.md.
+                                 interpretation, the Action Plan rules engine)
+                                 plus `mathUtils.ts` — small shared helpers
+                                 (`clamp`, `lerpScore`, `levelFor`) used by
+                                 more than one engine so their interpolation
+                                 and High/Medium/Low bucketing can't silently
+                                 drift apart. No I/O, no network, no LLM
+                                 calls — see CALCULATIONS.md.
 src/server/services/          → Business/domain logic that DOES need I/O:
                                  adapter orchestration, error translation.
 src/server/advisor/           → Phase 7's AI Advisor-specific pure logic:
@@ -42,6 +43,13 @@ src/server/advisor/           → Phase 7's AI Advisor-specific pure logic:
                                  than general-purpose scoring engines.
 src/server/db/                → Prisma client singleton + repository-style helpers.
 src/server/lib/                → Cross-cutting: env validation, logging, errors.
+src/server/validation/         → Shared Zod schemas for validating an
+                                 already-computed result (GreenScoreResult,
+                                 SolarScoreResult, etc.) when it's passed back
+                                 in as request input to another route —
+                                 extracted once a second route needed the
+                                 identical schema (see `resultSchemas.ts`'s
+                                 own comment).
 prisma/schema.prisma           → Database schema.
 tests/                         → Unit + integration tests, fixtures for offline use.
 tests/eval/                    → The AI Advisor's evaluation dataset and harness

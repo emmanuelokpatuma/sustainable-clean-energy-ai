@@ -95,6 +95,27 @@ export default function AdvisorScreen() {
       const greenData = greenRes.ok ? await greenRes.json() : { ok: false };
       const solarScoreData = solarScoreRes && solarScoreRes.ok ? await solarScoreRes.json() : null;
 
+      const energyNowForContext = energyNow
+        ? {
+            current: energyNow.energyNow.current,
+            interpretation: energyNow.interpretation,
+            retrievedAt: energyNow.energyNow.retrievedAt,
+            isFixture: energyNow.energyNow.isFixture,
+          }
+        : null;
+
+      setPipeline({ status: "loading", step: "Building your action plan…" });
+      const actionPlanRes = await fetch("/api/action-plan/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          greenScore: greenData.ok ? greenData.greenScore : null,
+          solarScore: solarScoreData?.ok ? solarScoreData.solarScore : null,
+          energyNow: energyNowForContext,
+        }),
+      });
+      const actionPlanData = actionPlanRes.ok ? await actionPlanRes.json() : null;
+
       const groundingContext = {
         location: {
           postcodeOutward: location.postcodeOutward,
@@ -103,14 +124,8 @@ export default function AdvisorScreen() {
         },
         greenScore: greenData.ok ? greenData.greenScore : null,
         solarScore: solarScoreData?.ok ? solarScoreData.solarScore : null,
-        energyNow: energyNow
-          ? {
-              current: energyNow.energyNow.current,
-              interpretation: energyNow.interpretation,
-              retrievedAt: energyNow.energyNow.retrievedAt,
-              isFixture: energyNow.energyNow.isFixture,
-            }
-          : null,
+        energyNow: energyNowForContext,
+        recommendations: actionPlanData?.ok ? actionPlanData.actionPlan.actions : null,
       };
 
       const summary = [
@@ -124,6 +139,9 @@ export default function AdvisorScreen() {
         groundingContext.energyNow
           ? `Energy now: ${groundingContext.energyNow.interpretation.currentSummary}`
           : "Energy now: not available",
+        groundingContext.recommendations && groundingContext.recommendations.length > 0
+          ? `Top recommendation: ${groundingContext.recommendations[0].title}`
+          : "Recommendations: none generated (not enough data)",
       ];
 
       setPipeline({ status: "ready", groundingContext, summary });

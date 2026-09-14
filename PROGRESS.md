@@ -508,3 +508,103 @@ that's technically already built. After that, Phase 8: Action Plans, which
 will finally give the grounding context's `recommendations` section (and
 GreenScore's `userProgress` component, excluded in every score so far) real
 data to work with instead of "not available yet."
+
+## Phase 8 — Action Plans
+
+**The Phase 7 evaluation gate above still stands — it was not run before
+proceeding to this phase, since building Phase 8 doesn't require a live
+model call and the user asked to continue. Do not skip that evaluation
+before relying on the AI Advisor.**
+
+### What was built
+- `src/server/calculations/actionPlan.ts` — pure, deterministic, no I/O,
+  same discipline as GreenScore/SolarScore/Energy Now interpretation. Four
+  V1 rules, each firing only on a genuine signal already present in
+  computed data (never on an absence alone, to avoid presumptuous
+  product-specific suggestions like "get an EV charger"):
+  - **Investigate solar suitability** — fires whenever a SolarScore exists;
+    framed differently (but not omitted) when suitability is Low.
+  - **Shift flexible electricity use** — fires when Energy Now's
+    flexible-use suggestion is available; deliberately never assigns a
+    quantified CO2 figure, since no per-household consumption data exists
+    to calculate one from.
+  - **Review household energy efficiency** — fires when GreenScore's
+    energyEfficiency component is included but scores below 70 (distinct
+    from "excluded for missing data," which triggers the next rule instead).
+  - **Add more information to sharpen your GreenScore** — fires whenever
+    any GreenScore component was excluded; always sorts last
+    (`impactCategory: "informational"`, weight 0).
+- Priority ordering is a genuine 3-key lexicographic sort (category, then
+  difficulty, then confidence) — read literally from CALCULATIONS.md's
+  numbered list rather than collapsed into a single weighted score, which
+  would have been a looser interpretation of "1. ... 2. ... 3. ...".
+- `POST /api/action-plan/generate` — same "no service wrapper, pure
+  calculation" pattern as `/api/scores/green` and `/api/scores/solar`.
+- **Refactor**: extracted `src/server/validation/resultSchemas.ts` out of
+  `/api/advisor/ask/route.ts` — the action-plan route needed the identical
+  ~80 lines of Zod schema for GreenScoreResult/SolarScoreResult/EnergyNow
+  shapes that the advisor route already had inline. Pure extraction, no
+  validation behaviour changed (same pattern as `mathUtils.ts` in Phase 5:
+  the second copy-paste is tolerable, the third is the signal to share).
+- **Phase 7 files updated to close the loop they were built anticipating**:
+  `groundingContext.ts`'s `recommendations` field now accepts the real
+  `RecommendedAction[]` shape (previously a placeholder `{title,
+  explanation, priority}` stub with a "not available yet" message) and
+  renders each action's impact category, difficulty, confidence, estimated
+  impact, and suggested next step — not just a title. The advisor screen
+  (`src/app/advisor/page.tsx`) now calls `/api/action-plan/generate` as
+  part of its pipeline and feeds real recommendations into the chat context.
+  The eval dataset's `injection-03` case (a fake malicious "recommendation"
+  embedded in structured data) was updated to the new required shape so it
+  still type-checks — the injection attempt itself is unchanged.
+- 17 new unit tests (`tests/unit/action-plan.test.ts`) covering: every
+  rule's trigger/non-trigger conditions, that no rule ever invents a
+  quantified figure it doesn't have, and priority ordering — including
+  hand-verified cases for category-beats-category, difficulty-breaks-a-
+  category-tie, the informational rule always sorting last, and no gaps in
+  the assigned priority sequence. `tests/unit/grounding-context.test.ts`'s
+  Recommendations section tests were rewritten for the richer shape (now
+  15 tests total in that file, up from 13).
+- Docs: `CALCULATIONS.md`'s Recommendation priority section replaced with
+  the actual rules/sort order (previously a forward-looking placeholder
+  since Phase 0), `ARCHITECTURE.md` documents `actionPlan.ts` and the new
+  `validation/` folder, `API.md` documents the route and updates the
+  advisor screen's description, `ROADMAP.md`.
+
+### What was NOT run, and why
+Same environment constraint as every phase: no network access, so
+`npm install`/`npm test`/`npm run typecheck`/`npm run build` haven't been
+executed. Every priority-ordering test's expected sequence was worked out
+by hand against the CATEGORY_WEIGHT/DIFFICULTY_RANK/CONFIDENCE_RANK tables
+before being written down. Separately and more importantly: **the Phase 7
+evaluation still hasn't been run** — see that phase's entry above. Phase 8
+doesn't change that gate; it's still outstanding.
+
+### Also not yet done (by design, deferred to later phases per ROADMAP.md)
+- GreenScore's `userProgress` component is STILL always excluded — Phase 8
+  produces recommendations but has no persistence (Phase 9) to track which
+  ones a user has actually completed, so there's no `{completed, total}`
+  signal to feed back into GreenScore yet. That link (Action Plan progress
+  → GreenScore's userProgress component) is a Phase 9 follow-up, not
+  something Phase 8 alone can close.
+- No persistence of generated action plans — every call recomputes from
+  scratch, consistent with every route so far.
+- Only 4 rules exist. `PRODUCT_SPEC.md`'s examples ("Investigate solar
+  suitability," "Shift flexible electricity use," "Review household energy
+  efficiency") are all covered; a richer rule set (e.g. differentiating gas
+  vs. electric heating advice, or CleanTech-specific suggestions once V1
+  decides how to handle the Component 2/4 "opportunity" definition
+  inconsistency flagged back in Phase 4) is future work, not a gap in what
+  was asked for.
+- Phases 9–12 (auth, security hardening, investor demo, final QA) are not
+  started.
+
+### Next recommended phase
+**Run the Phase 7 AI Advisor evaluation before anything else** — it has now
+been outstanding across two phases of continued building, and this project's
+own principle ("never claim complete without verification") applies to the
+project's own recommendations to itself just as much as to a GreenScore
+figure. After that: Phase 9 (authentication/privacy), which is what finally
+unlocks real persistence — for stored conversations (Phase 7), completed
+action tracking that feeds GreenScore's userProgress component (Phase 8),
+and every other "no persistence yet" note across Phases 1–8.
