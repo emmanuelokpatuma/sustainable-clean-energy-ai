@@ -96,3 +96,65 @@ by a real toolchain.
 Phase 2: NESO Carbon Intensity integration — same adapter pattern as Phase 1
 (`CarbonIntensityAdapter` implementing `DataAdapter<TInput, TOutput>`, fixture
 mode, Zod-validated parsing, unit + integration tests, docs updated).
+
+---
+
+## Phase 2 — NESO Carbon Intensity integration
+
+### What was built
+- `src/server/adapters/httpClient.ts` — new shared fetch-with-timeout-and-retry
+  helper (5s timeout, 1 retry on network failure or 5xx, no retry on 4xx).
+  Introduced because `CarbonIntensityAdapter` makes three calls per `fetch()`;
+  `PostcodesIoAdapter` (Phase 1, one call) was deliberately left as-is rather
+  than refactored onto this helper — it already works and is already tested.
+- `CarbonIntensityAdapter` (`src/server/adapters/carbonIntensityAdapter.ts`) —
+  retrieves current intensity (`/intensity`), forecast (`/intensity/{from}/{to}`),
+  and generation mix (`/generation`) from the NESO Carbon Intensity API.
+  Current intensity is **required** (its failure fails the whole call); forecast
+  and generation mix are **best-effort** — either can fail independently and the
+  snapshot still returns with that piece marked `{ available: false, reason }`.
+  Zod-validated end to end, including a closed enum for the five published
+  intensity index labels so an unrecognised label fails loudly instead of
+  passing through silently.
+- `CarbonIntensityService` (`src/server/services/carbonIntensityService.ts`) —
+  the reusable entry point future phases (Energy Now UI, GreenScore's carbon-
+  optimisation component, AI Advisor grounding) will consume. Deliberately has
+  no location parameter yet — NESO's national endpoints don't need one; a
+  regional variant is a documented, deferred extension point, not built now
+  (avoiding over-engineering a V1 feature that doesn't need it).
+- `GET /api/energy/current` route, with an optional `forecastHours` query param.
+  Implemented as GET rather than the POST originally sketched in API.md's
+  "planned routes" table, since no request body is needed — API.md has been
+  corrected to match the real, implemented shape.
+- Fixtures: schema-accurate current/forecast/generation-mix responses matching
+  NESO's documented API shape (`tests/fixtures/carbon-intensity/`), including a
+  forecast fixture where every period correctly has `actual: null` (future
+  periods never have a settled actual value — the adapter must never invent one).
+- Tests: 6 unit tests on the adapter (fixture-mode snapshot, required-call
+  failure, schema-mismatch failure, forecast-degrades-gracefully,
+  generation-mix-degrades-gracefully, retry-on-5xx) and 4 integration tests on
+  the service (success, partial degradation passed through as still-ok,
+  AdapterError mapped to a service failure, unexpected error handled without
+  throwing).
+- Docs updated: ARCHITECTURE.md (adapter status table + new patterns
+  introduced), API.md (route moved from planned to implemented, corrected to
+  GET), ROADMAP.md (Phase 2 marked done), TESTING.md (coverage list).
+
+### Deliberate design decisions worth flagging
+- **No UI built yet** — per the phase scope, this is data model + service +
+  route only. The Energy Now screen with interpretation copy ("Electricity is
+  currently relatively low-carbon") is Phase 6, and interpretation logic
+  should live there or in a dedicated interpretation function, not in this
+  service — this service returns raw structured data, not conclusions.
+- **Regional carbon intensity** (NESO's `/regional/postcode/{outcode}`) was
+  not implemented. Noted as a documented extension point in
+  `carbonIntensityService.ts` rather than silently omitted.
+
+### What was NOT run, and why
+Same sandbox constraint as Phase 0/1 — no outbound network access, so
+`npm install`/`npm test`/`npm run typecheck`/`npm run build` could not be
+executed here. Every new file was reviewed by hand. Run the same verification
+commands listed under Phase 0/1 above, now against the Phase 2 code too.
+
+### Next recommended phase
+Phase 3: PVGIS solar integration — same adapter/service/fixture/test pattern.

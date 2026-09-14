@@ -1,0 +1,18 @@
+{
+  "data": {
+    "from": "2026-09-14T11:00Z",
+    "to": "2026-09-14T11:30Z",
+    "generationmix": [
+      { "fuel": "gas", "perc": 39.7 },
+      { "fuel": "coal", "perc": 0 },
+      { "fuel": "biomass", "perc": 5.7 },
+      { "fuel": "nuclear", "perc": 15.3 },
+      { "fuel": "hydro", "perc": 1.9 },
+      { "fuel": "imports", "perc": 8.2 },
+      { "fuel": "other", "perc": 0.2 },
+      { "fuel": "wind", "perc": 21.9 },
+      { "fuel": "solar", "perc": 3.4 },
+      { "fuel": "storage", "perc": 3.7 }
+    ]
+  }
+}

@@ -4,7 +4,7 @@
 |---|---|---|
 | 0 | Architecture, project setup, docs, test foundation, DB schema | ✅ Done (this delivery) |
 | 1 | Postcode / location system (Postcodes.io) | ✅ Done (this delivery) |
-| 2 | NESO Carbon Intensity integration | ⬜ Not started |
+| 2 | NESO Carbon Intensity integration | ✅ Done (this delivery) |
 | 3 | PVGIS solar integration | ⬜ Not started |
 | 4 | Deterministic GreenScore engine | ⬜ Not started |
 | 5 | SolarScore | ⬜ Not started |

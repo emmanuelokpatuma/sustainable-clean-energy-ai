@@ -1,0 +1,10 @@
+{
+  "data": [
+    { "from": "2026-09-14T11:30Z", "to": "2026-09-14T12:00Z", "intensity": { "forecast": 140, "actual": null, "index": "moderate" } },
+    { "from": "2026-09-14T12:00Z", "to": "2026-09-14T12:30Z", "intensity": { "forecast": 121, "actual": null, "index": "low" } },
+    { "from": "2026-09-14T13:00Z", "to": "2026-09-14T13:30Z", "intensity": { "forecast": 98,  "actual": null, "index": "low" } },
+    { "from": "2026-09-14T15:00Z", "to": "2026-09-14T15:30Z", "intensity": { "forecast": 187, "actual": null, "index": "high" } },
+    { "from": "2026-09-14T18:00Z", "to": "2026-09-14T18:30Z", "intensity": { "forecast": 245, "actual": null, "index": "very high" } },
+    { "from": "2026-09-14T22:00Z", "to": "2026-09-14T22:30Z", "intensity": { "forecast": 132, "actual": null, "index": "moderate" } }
+  ]
+}

@@ -16,13 +16,17 @@ representative recorded response (or a hand-built one that matches the documente
 schema when a live example wasn't available at scaffold time) with a comment
 noting its origin and date.
 
-## Current coverage (Phase 0/1)
+## Current coverage (Phase 0/1/2)
 - `tests/unit/postcode-validation.test.ts` — UK postcode format validation
 - `tests/unit/postcodes-io-adapter.test.ts` — adapter parsing, fixture-mode
 - `tests/integration/location-service.test.ts` — full resolve flow incl. failure paths
+- `tests/unit/carbon-intensity-adapter.test.ts` — response parsing, fixture-mode,
+  required-vs-best-effort call failures, retry-on-5xx behaviour
+- `tests/integration/carbon-intensity-service.test.ts` — full Energy Now data
+  flow incl. partial degradation (forecast/generation-mix unavailable) and
+  total failure paths
 
 ## Coverage still required (later phases)
-- Carbon intensity parsing + interpretation (low/med/high, forecast vs actual)
 - PVGIS parsing + SolarAssessment normalisation
 - GreenScore boundary cases (missing data, all-zero, all-max)
 - Recommendation prioritisation ordering

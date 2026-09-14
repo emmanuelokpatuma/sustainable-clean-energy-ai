@@ -55,11 +55,64 @@ attempt to read a `location` field from it.
 
 ---
 
+## `GET /api/energy/current`
+**Status: implemented (Phase 2).**
+
+Returns current and forecast GB electricity carbon intensity plus the current
+generation mix, via `CarbonIntensityService` → `CarbonIntensityAdapter`. Read-only
+national data — no request body needed, hence `GET` rather than the `POST` this
+file originally planned before the route existed (see `PROGRESS.md`).
+
+### Query parameters
+- `forecastHours` (optional, positive number, default 24): how far ahead to
+  request forecast data.
+
+### Response — success (200)
+```json
+{
+  "ok": true,
+  "energyNow": {
+    "current": {
+      "from": "2026-09-14T11:00Z",
+      "to": "2026-09-14T11:30Z",
+      "forecast": 148,
+      "actual": 152,
+      "index": "moderate"
+    },
+    "forecast": {
+      "available": true,
+      "periods": [ { "from": "...", "to": "...", "forecast": 121, "actual": null, "index": "low" } ]
+    },
+    "generationMix": {
+      "available": true,
+      "mix": [ { "fuel": "wind", "percentage": 21.9 } ]
+    },
+    "source": "NESO Carbon Intensity API",
+    "retrievedAt": "2026-09-14T11:05:00.000Z",
+    "isFixture": false
+  }
+}
+```
+
+Note the partial-degradation shape: `forecast` and `generationMix` are each
+either `{ available: true, ... }` or `{ available: false, reason }`. A client
+must check `available` on each independently — `current` succeeding does not
+guarantee `forecast` or `generationMix` did. `actual` is `null` for any period
+that hasn't happened yet (a real API characteristic, not a bug) — never treat
+`null` as zero or omit the field.
+
+### Response — failure
+| Status | Cause | Example `message` |
+|---|---|---|
+| 400 | `forecastHours` present but not a positive number | "forecastHours must be a positive number." |
+| 503 | Current intensity (the required piece) unreachable, timed out, or malformed after retry | "Live electricity carbon-intensity data is temporarily unavailable. Please try again shortly." |
+
+---
+
 ## Planned routes (not yet implemented)
 
 | Route | Phase | Purpose |
 |---|---|---|
-| `POST /api/energy/current` | 2 | Current + forecast GB carbon intensity for a location |
 | `POST /api/solar/assess` | 3 | PVGIS-derived SolarAssessment for a location |
 | `POST /api/scores/green` | 4 | Compute/retrieve a GreenScore for a property |
 | `GET /api/scores/solar/:propertyId` | 5 | Retrieve a stored SolarScore |

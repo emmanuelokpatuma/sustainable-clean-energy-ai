@@ -37,7 +37,7 @@ shape, and a provider swap never has to touch the UI.
 | Adapter | Source | Status in this scaffold |
 |---|---|---|
 | `PostcodesIoAdapter` | Postcodes.io | Implemented (Phase 1) |
-| `CarbonIntensityAdapter` | NESO Carbon Intensity API | Interface only (Phase 2) |
+| `CarbonIntensityAdapter` | NESO Carbon Intensity API | Implemented (Phase 2) |
 | `PvgisAdapter` | EU PVGIS | Interface only (Phase 3) |
 | `NasaPowerAdapter` | NASA POWER | Interface only, future backup solar source |
 | `EurostatAdapter` | Eurostat | Interface only, future EU expansion |
@@ -47,6 +47,16 @@ Every adapter implements a shared `DataAdapter<TInput, TOutput>` contract
 (`src/server/adapters/types.ts`) with: `fetch(input)`, a fixture-mode switch driven
 by `USE_FIXTURE_DATA`, source name + attribution metadata, and typed errors that
 distinguish "temporarily unavailable" from "invalid input" from "unexpected shape".
+
+`CarbonIntensityAdapter` (Phase 2) introduced `src/server/adapters/httpClient.ts`,
+a shared fetch-with-timeout-and-retry helper, since it makes three separate calls
+per `fetch()` (current intensity, forecast, generation mix) and inlining
+timeout/retry/error-wrapping three times would drift out of sync. It also
+introduces the **graceful partial degradation** pattern: current intensity is
+required (its failure fails the whole call), but forecast and generation mix are
+best-effort — if either fails, the snapshot still returns with that piece marked
+`{ available: false, reason }` rather than fabricating a value or discarding data
+that did succeed.
 
 ## Database tables (Phase 0 schema, not all populated until later phases)
 `users, properties, locations, energy_profiles, solar_assessments,
