@@ -918,3 +918,72 @@ what remains. This phase's own "what was NOT run" sections across all 11
 prior phases are the raw material for that report — Phase 12 should
 compile them, not rediscover them.
 
+## Phase 12 — Final QA report
+
+**The Phase 7 evaluation gate still stands — six phases outstanding now.
+`FINAL_QA_REPORT.md` lists this as P0 #1. It is not resolved by writing a
+report about it.**
+
+### What was built
+- **`FINAL_QA_REPORT.md`** — compiles every phase's "what was NOT run"
+  caveat into one document, plus a fresh code-level journey walkthrough
+  (13 scenarios: normal flow, invalid postcode, API failure, partial data,
+  missing solar/carbon data, slow network, mobile/desktop, unauthorised
+  access, malformed input, AI grounding, database failure), the spec's
+  9-item checklist, and a P0/P1/P2 severity list. States plainly, in its
+  first line, that the application is NOT production-ready.
+- **A genuine first for this project: real, executed verification**, not
+  just careful reading. This sandboxed environment turned out to have a
+  standalone TypeScript compiler available independent of the project's
+  own `npm install`-gated dependencies. Used it to actually typecheck:
+  - `src/server/calculations/*.ts` (GreenScore, SolarScore, Action Plan,
+    Energy Now interpretation, math utils) — zero external dependencies,
+    compiled clean under `--strict` with no shims. The most
+    safety/correctness-critical pure logic in the app is now genuinely
+    confirmed type-sound, not just apparently so.
+  - `src/server/advisor/groundingContext.ts` and `systemPrompt.ts` — same,
+    clean.
+  - `src/server/lib/password.ts`, `session.ts`, `rateLimit.ts` — required
+    hand-built shims for Node/Next types; clean once shimmed.
+- **An anomaly investigated properly, not dismissed or over-reported**: an
+  initial typecheck of `session.ts` flagged what looked like a real bug (a
+  `string | null` vs `string` mismatch on `getSessionSecret()`'s return).
+  Rather than assume either "probably fine" or "definitely a bug," isolated
+  it with a minimal reproduction and confirmed it was a cascading artifact
+  of unresolved `process`/`console`/`Buffer` types interfering with the
+  compiler's narrowing — not a real defect. The shim setup itself was also
+  sanity-checked by deliberately breaking a property name and confirming
+  the checker caught it, before trusting a clean result on the real file.
+  This is the standard the rest of this report tries to hold to: verify
+  anomalies, don't wave them away or inflate them.
+- **One genuine new finding, not a restatement**: no route wraps its
+  Prisma calls (`user.create`, `property.create`, `greenScore.create`,
+  `user.delete`) in error handling — a database connection failure would
+  surface an unfriendly raw error, breaking the "errors are user-friendly"
+  standard the rest of the app holds to. Added to the severity list as P0
+  #4 rather than left implicit.
+- Test suite inventory: 18 test files (15 unit, 3 integration), ~175 test
+  cases, counted directly rather than estimated from memory.
+
+### What was NOT run, and why
+Everything `FINAL_QA_REPORT.md` itself says wasn't run: `npm install`,
+`npm test`, `npm run build`, any database migration, and — again, still,
+sixth time — the Phase 7 AI Advisor evaluation. This phase's job was to be
+honest about the aggregate state of all of that, not to resolve it, and it
+does not claim otherwise anywhere in `FINAL_QA_REPORT.md`'s own text.
+
+### Also not yet done
+Nothing new beyond what `FINAL_QA_REPORT.md`'s P0/P1/P2 list already
+states explicitly — that list IS the "also not yet done" for this phase
+and the entire project. Repeating it here would just be a second copy of
+the same information; read the report.
+
+### Next recommended phase
+There is no Phase 13 in `ROADMAP.md` — this was the last planned phase.
+What comes next is not a phase, it's the P0 list in `FINAL_QA_REPORT.md`,
+starting with the AI Advisor evaluation that has now been outstanding
+across six consecutive phases. Every phase's code is complete per
+`ROADMAP.md`. The project is not done in the sense that matters — running,
+verified, safe to put in front of a real user — until that list is closed,
+starting from the top.
+

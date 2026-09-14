@@ -14,7 +14,7 @@
 | 9 | Authentication / privacy layer | ✅ Done (this delivery) |
 | 10 | Testing & production hardening / security review | ✅ Done (this delivery — scoped to rate limiting + security review + CI audit; see PROGRESS.md) |
 | 11 | Investor demonstration mode | ✅ Done (this delivery) |
-| 12 | Final QA report | ⬜ Not started |
+| 12 | Final QA report | ✅ Done (this delivery — see FINAL_QA_REPORT.md; NOT production-ready, P0 list open) |
 
 Each phase, when picked up, should: inspect current state → implement → run
 tests → update docs → update this table → commit.

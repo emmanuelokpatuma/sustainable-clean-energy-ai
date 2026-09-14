@@ -5,16 +5,22 @@ and an AI Sustainability Advisor. See `PRODUCT_SPEC.md` for the product spec and
 `ARCHITECTURE.md` for the technical design.
 
 ## Status
-This is a **Phase 0–11** build: project setup, docs, testing foundation,
-database schema, the postcode/location service, GB electricity carbon-intensity
-integration (NESO), PVGIS solar integration, the deterministic GreenScore
-engine, the deterministic SolarScore engine, the Energy Now screen, the AI
+This is a **Phase 0–12** build — every phase in `ROADMAP.md` is implemented:
+project setup, docs, testing foundation, database schema, the
+postcode/location service, GB electricity carbon-intensity integration
+(NESO), PVGIS solar integration, the deterministic GreenScore engine, the
+deterministic SolarScore engine, the Energy Now screen, the AI
 Sustainability Advisor, the deterministic Action Plan engine,
-authentication/privacy, a scoped security-hardening pass, and an investor
-demo mode (`/demo` + `DEMO_SCRIPT.md`) are implemented. **The AI Advisor's
-mandatory evaluation run has NOT been performed** (see `tests/eval/README.md`)
-— read that before relying on it. Everything else in `ROADMAP.md` is not yet
-built. See `PROGRESS.md` for the authoritative current state.
+authentication/privacy, a scoped security-hardening pass, an investor demo
+mode (`/demo` + `DEMO_SCRIPT.md`), and a final QA report.
+
+**"All phases implemented" does not mean production-ready.** Read
+`FINAL_QA_REPORT.md` before deploying this anywhere real — it documents a
+P0 list that includes the still-unrun AI Advisor evaluation
+(`tests/eval/README.md`) and the fact that nothing in this project has ever
+been executed (`npm install`/`npm test`/`npm run build`/a database
+migration), since it was built entirely without network access. See
+`PROGRESS.md` for the authoritative phase-by-phase history.
 
 > This scaffold was generated without network access (no `npm install` or
 > `npm test` could be run in the build environment). Run the verification steps
@@ -54,3 +60,4 @@ integration tests are marked to optionally run against live endpoints — see
 - `PROGRESS.md` — actual current state, updated every phase
 - `TESTING.md` — test strategy and fixture policy
 - `DEMO_SCRIPT.md` — the 90-second investor demo walkthrough for `/demo` (Phase 11)
+- `FINAL_QA_REPORT.md` — production-readiness assessment and P0/P1/P2 severity list (Phase 12)
