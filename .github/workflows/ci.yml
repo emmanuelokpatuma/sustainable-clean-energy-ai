@@ -38,7 +38,14 @@ jobs:
       - name: Build
         run: npm run build
 
-      # TODO (see SECURITY.md "open items"): add `npm audit` or an equivalent
-      # dependency vulnerability scan here before this project handles real
-      # user data. Not added yet so it isn't a silently-ignored red X — track
-      # it as a deliberate, visible gap instead.
+      - name: Dependency vulnerability scan
+        # Phase 10: closes the TODO below. continue-on-error is deliberate,
+        # not an oversight — this has never been run in this project's
+        # history (no network access in the environment it was built in),
+        # so the current dependency tree's actual audit result is unknown.
+        # Run this once for real, look at what it reports, and remove
+        # continue-on-error once someone has confirmed a clean (or
+        # consciously accepted) baseline — a scan nobody looks at is worse
+        # than no scan, because it creates false confidence.
+        run: npm audit --audit-level=high
+        continue-on-error: true

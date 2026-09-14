@@ -733,3 +733,99 @@ of gap survives in a real project, which is exactly why it's called out
 here again rather than assumed resolved. After that: Phase 10, security and
 UX hardening — this phase's own SECURITY.md additions (rate limiting above
 all) are the concrete starting list, not a generic "do a security review."
+
+## Phase 10 — Testing & production hardening / security review
+
+**The Phase 7 evaluation gate still stands — four phases outstanding now.
+Still not run, for the same reason as every phase since: no network access
+in this environment, and continuing was requested. See that phase's entry.**
+
+### Scope decision
+`ROADMAP.md` labels this phase "Testing & production hardening / security
+review" — no explicit UX-redesign mandate the way the original product brief's
+separately-numbered UX phase had. Scoped this delivery to what `SECURITY.md`
+had already flagged as concrete, fixable gaps, plus an actual review pass,
+plus a genuine (not superficial) accessibility check — rather than a
+speculative "polish everything" pass with no specific target. `CALCULATIONS.md`
+was not touched — no calculation changed, per this phase's own "do not change
+the underlying calculations" instruction (in the original brief's parallel
+UX-hardening description).
+
+### What was built
+- **`src/server/lib/rateLimit.ts`** — an in-memory, fixed-window rate
+  limiter, applied to exactly the three routes that needed it:
+  - `POST /api/auth/login`: 5 attempts / 15 min / IP (this document's own
+    "single biggest concrete risk" from Phase 9 — now closed).
+  - `POST /api/auth/signup`: 3 accounts / hour / IP (anti-spam).
+  - `POST /api/advisor/ask`: 20 questions / hour / IP — cost protection
+    (every call is a billed Anthropic API request), not brute-force
+    protection.
+  - **Honestly-stated limitation, not glossed over**: this is per-process
+    in-memory state. Correct for one server instance; silently becomes "N
+    per window *per instance*" the moment this app runs as multiple
+    instances or serverless functions. A real multi-instance deployment
+    needs a shared store (Redis) instead — documented in the file itself
+    and in `SECURITY.md`, not discovered later.
+  - 9 unit tests: limit enforcement, independent keys, window expiry,
+    exact `retryAfterSeconds` arithmetic (hand-verified: 60s window, 40s
+    elapsed, expect exactly 20s remaining), and `enforceRateLimit`'s
+    429-with-`Retry-After` wrapper behaviour including per-route and
+    per-IP namespacing.
+- **CI dependency scanning**: `npm audit --audit-level=high` added to
+  `.github/workflows/ci.yml`, previously a deliberate TODO comment.
+  **Marked `continue-on-error: true` on purpose** — this project's actual
+  dependency tree has never been audited (no network access in this
+  environment across its entire build), so claiming a passing gate would be
+  fabricating a result. The check now exists and is visible; someone with
+  real `npm install` access needs to run it, look at what it says, and
+  remove `continue-on-error` once there's a confirmed clean or consciously
+  accepted baseline.
+- **A real route-by-route security review** (all 14 API routes, not just
+  the auth ones), documented in `SECURITY.md`'s "Phase 10 review findings":
+  confirmed no route ever returns `passwordHash` (checked the two
+  `prisma.user.findUnique` call sites that fetch the full record
+  specifically, not just the ones that already used a `select` clause),
+  confirmed no route logs an email or password, confirmed no route sets any
+  `Access-Control-*` header (downgrading the old "CORS: needs
+  configuration" item to "already secure by default, revisit only if a
+  cross-origin client is added" — a finding, not just a restatement of the
+  same open item).
+- **A real (not superficial) accessibility check** across all four screens:
+  counted `<input>` elements against `aria-label` attributes per screen and
+  confirmed every one is labelled (Phase 1's postcode screen: 1/1, Energy
+  Now: 0 inputs/0 labels — correctly has none, since its only interactive
+  element is a `<button>` with visible text, which doesn't need one, not a
+  gap — Advisor: 2/2, Settings: 3/3). No accessibility issues found or
+  fixed this phase, and that absence is reported directly rather than
+  padded with invented busywork to make the phase look bigger.
+
+### What was NOT run, and why
+The usual constraint: no network access, so `npm install`, the new `npm
+audit` step, `npm test`, `npm run typecheck`, and `npm run build` have not
+been executed in this environment. The 9 new rate-limiter tests were
+checked by hand against the implementation (the `retryAfterSeconds` test in
+particular — `60_000ms window, 40_000ms elapsed → 20s remaining` — is exact
+arithmetic, not an approximation). **The Phase 7 AI Advisor evaluation
+remains unrun — fourth phase running now.**
+
+### Also not yet done (by design, deferred to later phases per ROADMAP.md)
+- Email verification, password reset, CSRF beyond `sameSite: lax`, and
+  auth event audit logging remain open — see `SECURITY.md`'s
+  authentication-specific open items, unchanged by this phase (not this
+  phase's scope; flagged, not silently dropped).
+- `npm audit`'s actual result is unknown until someone runs it with real
+  network access — the CI step exists but doesn't gate merges yet.
+- The in-memory rate limiter's single-instance limitation is a real
+  production gap for any horizontally-scaled deployment, documented rather
+  than solved (would require adding a Redis dependency, which is a bigger
+  infrastructure decision than this phase's scope).
+- No investor demo mode or final QA report — that's Phases 11–12.
+
+### Next recommended phase
+**Still: run the Phase 7 AI Advisor evaluation** — fourth time flagging
+this, deliberately, because the pattern of "one more phase, then I'll do
+it" is precisely how real projects let a stated safety gate quietly expire.
+After that: Phase 11, investor demonstration mode — a fast, reliable,
+clearly-labelled demo path through the full postcode → GreenScore →
+SolarScore → Energy Now → Advisor → Action Plan pipeline built across
+Phases 1–8, per `PRODUCT_SPEC.md`'s 90-second demo script requirement.

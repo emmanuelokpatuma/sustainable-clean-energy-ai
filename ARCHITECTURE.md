@@ -43,8 +43,8 @@ src/server/advisor/           → Phase 7's AI Advisor-specific pure logic:
                                  than general-purpose scoring engines.
 src/server/db/                → Prisma client singleton + repository-style helpers.
 src/server/lib/                → Cross-cutting: env validation, logging, errors,
-                                 password hashing, session tokens, and
-                                 `getCurrentUser()` (Phase 9).
+                                 password hashing, session tokens, rate
+                                 limiting, and `getCurrentUser()` (Phase 9/10).
 src/server/validation/         → Shared Zod schemas for validating an
                                  already-computed result (GreenScoreResult,
                                  SolarScoreResult, etc.) when it's passed back

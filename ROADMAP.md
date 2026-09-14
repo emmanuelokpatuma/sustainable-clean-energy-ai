@@ -12,7 +12,7 @@
 | 7 | AI Sustainability Advisor | ⚠️ Code complete — mandatory evaluation NOT run (this delivery) |
 | 8 | Action Plans | ✅ Done (this delivery) |
 | 9 | Authentication / privacy layer | ✅ Done (this delivery) |
-| 10 | Testing & production hardening / security review | ⬜ Not started |
+| 10 | Testing & production hardening / security review | ✅ Done (this delivery — scoped to rate limiting + security review + CI audit; see PROGRESS.md) |
 | 11 | Investor demonstration mode | ⬜ Not started |
 | 12 | Final QA report | ⬜ Not started |
 

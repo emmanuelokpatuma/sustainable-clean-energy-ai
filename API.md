@@ -340,7 +340,9 @@ request is always a 400.
 ---
 
 ## `POST /api/advisor/ask`
-**Status: implemented (Phase 7).**
+**Status: implemented (Phase 7). Rate-limited (Phase 10): 20 questions /
+hour / IP — cost protection, since every call is a real, billed Anthropic
+API request, not brute-force protection.**
 
 Asks the AI Sustainability Advisor a question, grounded in whatever
 GreenScore/SolarScore/Energy Now/location data the caller supplies. Calls
@@ -402,6 +404,7 @@ Energy Now" under the answer), not the raw context text itself.
 | Status | Cause | Example `message` |
 |---|---|---|
 | 400 | Malformed body, missing/invalid `question`, or `groundingContext` didn't match the expected shape | "The request body did not match the expected shape." |
+| 429 | More than 20 requests from this IP in the last hour (Phase 10) | "Too many requests. Please try again shortly." |
 | 503 | The AI provider is unreachable, rate-limited, or misconfigured | "The AI Advisor is temporarily unavailable. Please try again shortly." |
 
 ### Screen
@@ -476,7 +479,7 @@ All session state lives in an `httpOnly`, `sameSite: lax` cookie named
 localStorage. None of these routes require a body field beyond what's shown.
 
 ### `POST /api/auth/signup`
-**Status: implemented.**
+**Status: implemented. Rate-limited (Phase 10): 3 accounts / hour / IP.**
 
 Request: `{ "email": "you@example.com", "password": "at least 10 chars" }`.
 Only email + password are collected — see `PRIVACY.md`.
@@ -489,9 +492,12 @@ Failure:
 |---|---|
 | 400 | Malformed email, or password shorter than 10 characters |
 | 409 | An account with that email already exists |
+| 429 | More than 3 signups from this IP in the last hour |
 
 ### `POST /api/auth/login`
-**Status: implemented.**
+**Status: implemented. Rate-limited (Phase 10): 5 attempts / 15 minutes / IP —
+exceeding it returns 429 with a `Retry-After` header, before the request
+body is even parsed.**
 
 Request: `{ "email": "...", "password": "..." }`.
 
@@ -501,7 +507,8 @@ Failure: **401** with the message `"Invalid email or password."` for both a
 non-existent email and a wrong password — deliberately identical wording;
 see `SECURITY.md`'s enumeration-resistance note. A malformed request body
 (e.g. not a valid email shape) returns **400** with the same generic
-message, for the same reason.
+message, for the same reason. **429** (with a `Retry-After` header) if the
+rate limit above is exceeded.
 
 ### `POST /api/auth/logout`
 **Status: implemented.** No body. Clears the session cookie. Always

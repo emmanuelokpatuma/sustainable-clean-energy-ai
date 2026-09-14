@@ -7,7 +7,7 @@ is scheduled as Phase 10 in `ROADMAP.md`; this file is not a substitute for
 that review, and no claim of "production-ready" should be made until Phase 10
 and a human/legal review have both happened.
 
-## Current state (through Phase 9)
+## Current state (through Phase 10)
 
 ### Secrets
 - `ANTHROPIC_API_KEY` and any future adapter keys are read only in
@@ -62,14 +62,6 @@ and a human/legal review have both happened.
   `/api/properties/[id]/green-scores`.
 
 ### Not yet implemented / open items — authentication-specific
-These are real gaps a production launch needs to close, not just a "later"
-gesture:
-- **No rate limiting on login or signup.** This is the single biggest
-  concrete risk introduced by this phase: without it, `/api/auth/login` is
-  brute-forceable and `/api/auth/signup` can be used to enumerate or spam
-  account creation. This should be fixed before Phase 9's auth is exposed
-  to real traffic, not deferred to the general Phase 10 rate-limiting item
-  below.
 - **No email verification.** An account can be created with any email
   address, including one the person doesn't own.
 - **No password-reset flow.** A user who forgets their password currently
@@ -84,18 +76,54 @@ gesture:
   server-side at all — they're a stateless signed token, so there is
   nothing to revoke without adding a server-side session store).
 
+### Rate limiting (Phase 10 — implemented)
+Closes what this document previously flagged as "the single biggest
+concrete risk introduced by Phase 9." `src/server/lib/rateLimit.ts` — an
+in-memory, fixed-window limiter, applied to the three routes that actually
+needed it:
+- `POST /api/auth/login`: 5 attempts / 15 minutes / IP (brute-force
+  protection).
+- `POST /api/auth/signup`: 3 accounts / hour / IP (anti-spam).
+- `POST /api/advisor/ask`: 20 questions / hour / IP — this one isn't about
+  brute force, it's about cost: every call is a real, billed Anthropic API
+  request.
+
+**Real, stated limitation, not glossed over**: this is in-memory per server
+process. It works correctly for a single-instance deployment. It does NOT
+work correctly once this app runs as multiple instances or serverless
+functions — each has its own memory, so "5 per 15 minutes" silently becomes
+"5 per 15 minutes per instance." A horizontally-scaled or serverless
+deployment needs a shared store (Redis, or the hosting platform's own rate
+limiting) instead — `enforceRateLimit()`'s call sites don't need to change,
+only `rateLimit.ts`'s internals.
+
+### Phase 10 review findings
+A route-by-route read of all 14 API routes (not just the auth ones) found:
+- No route returns `passwordHash` in a response, including the internal
+  `prisma.user.findUnique` calls in `getCurrentUser()` and the
+  account-deletion route that fetch the full user record for verification —
+  checked explicitly, not just assumed from the `select` clauses elsewhere.
+- No route logs an email address or password — only `userId` is logged on
+  signup/account-deletion.
+- No route sets any `Access-Control-*` header — confirming the "CORS: not
+  yet configured" item below describes an already-secure default (no route
+  opens up cross-origin access), not an open vulnerability. Downgraded from
+  "needs explicit configuration" to "fine as-is until a cross-origin client
+  is actually added" on that basis.
+- One real bug found and fixed in Phase 9's own review (see that phase's
+  entry) — the 403/404 inconsistency. No further bugs found in this pass.
+
 ### Not yet implemented / open items for later phases
-- **Rate limiting**: no rate limiting exists yet on any route (see the
-  auth-specific callout above for why this matters most urgently there).
-  Needed before public launch to protect this service, upstream free APIs,
-  and the AI provider (which bills per token) from abuse.
-- **CORS**: not yet configured; Next.js defaults apply. Needs explicit
-  configuration once the API is consumed from any origin other than the
-  bundled frontend.
-- **Dependency vulnerability scanning**: not yet wired into CI. `npm audit`
-  (or a tool like Dependabot/Snyk) should run in the CI workflow before
-  launch — see `.github/workflows/ci.yml`, where this is called out as a
-  TODO rather than silently omitted.
+- **CORS**: no route sets permissive CORS headers (verified this phase —
+  see above), so this is a secure-by-default non-issue for now, not an open
+  risk. Revisit only if a cross-origin client is added.
+- **Dependency vulnerability scanning**: `npm audit --audit-level=high` is
+  now in `.github/workflows/ci.yml`, but with `continue-on-error: true` —
+  this project's dependency tree has never actually been audited (no
+  network access in the environment it was built in), so the check exists
+  but doesn't block yet. Run it for real, look at the result, and remove
+  `continue-on-error` once someone has a confirmed clean or consciously
+  accepted baseline.
 - **Prompt injection (Phase 7, AI Advisor)**: mitigated, not eliminated.
   The system prompt (`src/server/advisor/systemPrompt.ts`) wraps the
   structured grounding context in explicit `<structured_data>` delimiters

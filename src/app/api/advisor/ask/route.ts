@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { AiAdvisorService } from "@/server/services/aiAdvisorService";
+import { enforceRateLimit } from "@/server/lib/rateLimit";
 import {
   greenScoreResultSchema,
   solarScoreResultSchema,
@@ -9,6 +10,14 @@ import {
 } from "@/server/validation/resultSchemas";
 
 const advisorService = new AiAdvisorService();
+
+// 20 questions per hour per IP. Unlike the auth routes, this isn't guarding
+// against brute force — it's guarding against cost: every call here is a
+// real, billed Anthropic API request (see SECURITY.md's rate-limiting
+// note). 20/hour is generous for a real conversation, well below what an
+// automated script hammering this endpoint would run up.
+const ADVISOR_LIMIT = 20;
+const ADVISOR_WINDOW_MS = 60 * 60 * 1000;
 
 const bodySchema = z.object({
   groundingContext: z.object({
@@ -40,6 +49,9 @@ const bodySchema = z.object({
  * answer without saving anything server-side.
  */
 export async function POST(req: NextRequest) {
+  const blocked = enforceRateLimit(req, "advisor-ask", ADVISOR_LIMIT, ADVISOR_WINDOW_MS);
+  if (blocked) return blocked;
+
   let body: unknown;
   try {
     body = await req.json();
