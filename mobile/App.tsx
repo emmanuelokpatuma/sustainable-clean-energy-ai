@@ -92,6 +92,23 @@ export default function App() {
   const [question, setQuestion] = useState('Should I charge my EV later today?');
   const [asking, setAsking] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
+  const [showOnboarding, setShowOnboarding] = useState(true);
+  const [onboardingStep, setOnboardingStep] = useState(0);
+
+  const onboardingSteps = [
+    {
+      title: 'Home energy clarity',
+      body: 'See your GreenScore, solar potential, and grid intensity in one simple snapshot.',
+    },
+    {
+      title: 'Smarter timing',
+      body: 'Know when to shift EV charging, washing, and other flexible loads to lower-carbon periods.',
+    },
+    {
+      title: 'AI-powered guidance',
+      body: 'Ask tailored questions grounded in your home’s real solar and energy performance.',
+    },
+  ];
 
   const summaryCards = useMemo(
     () => [
@@ -220,6 +237,50 @@ export default function App() {
     }
   };
 
+  const renderOnboarding = () => (
+    <View style={styles.onboardingWrap}>
+      <View style={styles.logoCard}>
+        <Text style={styles.logoBadge}>C</Text>
+        <Text style={styles.logoTitle}>CleanTech Advisor</Text>
+      </View>
+
+      <View style={styles.onboardingCard}>
+        <Text style={styles.onboardingStep}>0{onboardingStep + 1}</Text>
+        <Text style={styles.onboardingTitle}>{onboardingSteps[onboardingStep].title}</Text>
+        <Text style={styles.onboardingBody}>{onboardingSteps[onboardingStep].body}</Text>
+
+        <View style={styles.onboardingDots}>
+          {onboardingSteps.map((_, index) => (
+            <View
+              key={index}
+              style={[styles.dot, onboardingStep === index && styles.dotActive]}
+            />
+          ))}
+        </View>
+
+        <View style={styles.onboardingActions}>
+          <TouchableOpacity
+            style={styles.secondaryButton}
+            onPress={() => (onboardingStep === onboardingSteps.length - 1 ? setShowOnboarding(false) : setOnboardingStep((current) => current + 1))}
+          >
+            <Text style={styles.secondaryButtonText}>
+              {onboardingStep === onboardingSteps.length - 1 ? 'Get started' : 'Next'}
+            </Text>
+          </TouchableOpacity>
+
+          {onboardingStep > 0 ? (
+            <TouchableOpacity
+              style={styles.textButton}
+              onPress={() => setOnboardingStep((current) => Math.max(0, current - 1))}
+            >
+              <Text style={styles.textButtonText}>Back</Text>
+            </TouchableOpacity>
+          ) : null}
+        </View>
+      </View>
+    </View>
+  );
+
   const renderOverview = () => (
     <>
       <View style={styles.heroCard}>
@@ -346,6 +407,10 @@ export default function App() {
   );
 
   const renderContent = () => {
+    if (showOnboarding) {
+      return renderOnboarding();
+    }
+
     switch (activeTab) {
       case 'solar':
         return renderSolar();
@@ -357,6 +422,17 @@ export default function App() {
         return renderOverview();
     }
   };
+
+  if (showOnboarding) {
+    return (
+      <SafeAreaView style={styles.safeArea}>
+        <StatusBar style="light" />
+        <ScrollView contentContainerStyle={[styles.container, styles.onboardingContainer]}>
+          {renderOnboarding()}
+        </ScrollView>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -409,6 +485,89 @@ const styles = StyleSheet.create({
   container: {
     padding: 18,
     paddingBottom: 120,
+  },
+  onboardingContainer: {
+    justifyContent: 'center',
+    minHeight: '100%',
+  },
+  onboardingWrap: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 18,
+  },
+  logoCard: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  logoBadge: {
+    width: 72,
+    height: 72,
+    borderRadius: 20,
+    backgroundColor: '#22c55e',
+    color: '#04130d',
+    textAlign: 'center',
+    textAlignVertical: 'center',
+    fontSize: 30,
+    fontWeight: '800',
+    marginBottom: 12,
+  },
+  logoTitle: {
+    color: '#f8fafc',
+    fontSize: 30,
+    fontWeight: '800',
+  },
+  onboardingCard: {
+    backgroundColor: '#0b1727',
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: '#1d3557',
+    padding: 24,
+    width: '100%',
+  },
+  onboardingStep: {
+    color: '#86efac',
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 2,
+    marginBottom: 8,
+  },
+  onboardingTitle: {
+    color: '#f8fafc',
+    fontSize: 26,
+    fontWeight: '800',
+    marginBottom: 10,
+  },
+  onboardingBody: {
+    color: '#cbd5e1',
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  onboardingDots: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 20,
+    marginBottom: 18,
+  },
+  dot: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#334155',
+  },
+  dotActive: {
+    backgroundColor: '#22c55e',
+    width: 22,
+  },
+  onboardingActions: {
+    gap: 12,
+  },
+  textButton: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  textButtonText: {
+    color: '#93c5fd',
+    fontWeight: '700',
   },
   heroCard: {
     backgroundColor: '#0b1727',
@@ -499,6 +658,29 @@ const styles = StyleSheet.create({
     fontSize: 22,
     fontWeight: '800',
     marginTop: 8,
+  },
+  quickActionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 18,
+  },
+  quickAction: {
+    flex: 1,
+    backgroundColor: '#0f172a',
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+  },
+  quickActionLabel: {
+    color: '#a8b3c7',
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  quickActionValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 5,
   },
   card: {
     backgroundColor: '#0f172a',
@@ -597,28 +779,5 @@ const styles = StyleSheet.create({
   },
   tabLabelActive: {
     color: '#f8fafc',
-  },
-  quickActionRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 18,
-  },
-  quickAction: {
-    flex: 1,
-    backgroundColor: '#0f172a',
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 12,
-  },
-  quickActionLabel: {
-    color: '#a8b3c7',
-    fontSize: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  quickActionValue: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginTop: 5,
   },
 });
