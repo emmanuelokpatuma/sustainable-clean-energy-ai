@@ -10,6 +10,8 @@
  * `GreenScoreResult` produced by this file; it will never produce one itself.
  */
 
+import { clamp, lerpScore, levelFor } from "./mathUtils";
+
 export const GREEN_SCORE_FORMULA_VERSION = "1.0.0";
 
 // Fixed in CALCULATIONS.md — do not change without updating that file first.
@@ -81,23 +83,6 @@ export interface GreenScoreResult {
 export type GreenScoreOutcome =
   | { ok: true; result: GreenScoreResult }
   | { ok: false; reason: "insufficient_data"; message: string };
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.max(min, Math.min(max, value));
-}
-
-/** Piecewise-linear interpolation between (x0,y0) and (x1,y1), clamped outside the range. */
-function lerpScore(x: number, x0: number, y0: number, x1: number, y1: number): number {
-  if (x <= x0) return y0;
-  if (x >= x1) return y1;
-  return y0 + ((x - x0) * (y1 - y0)) / (x1 - x0);
-}
-
-function levelFor(score: number): "High" | "Medium" | "Low" {
-  if (score >= 70) return "High";
-  if (score >= 40) return "Medium";
-  return "Low";
-}
 
 // ---------------------------------------------------------------------------
 // Component 1: Energy efficiency

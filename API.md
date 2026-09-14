@@ -233,11 +233,88 @@ and why, not just the components that were.
 
 ---
 
+## `POST /api/scores/solar`
+**Status: implemented (Phase 5).**
+
+Computes a SolarScore from a `SolarAssessment` (e.g. from `/api/solar/assess`)
+plus optional grid-intensity/pricing inputs. **`POST`, not the
+`GET /api/scores/solar/:propertyId` this file originally planned in Phase
+0** — there's no `:propertyId` to look up yet (persistence is Phase 9), so
+this takes the same "pass the data directly" approach already established by
+`/api/scores/green`. See `CALCULATIONS.md` for the full formula.
+
+### Request
+Only `solarAssessment` is required.
+```json
+{
+  "solarAssessment": {
+    "annualGenerationKwh": 3120,
+    "monthlyGenerationKwh": [100, 166, 266, 320, 380, 400, 410, 370, 300, 210, 130, 90],
+    "annualIrradiationKwhPerM2": 1080,
+    "assumptions": { "peakPowerKw": 3.5 },
+    "limitations": ["Modelled from typical-year solar radiation data, not a physical site survey."]
+  },
+  "averageGridIntensityGCo2PerKwh": 130,
+  "electricityPricePencePerKwh": 27.5,
+  "hasBattery": false
+}
+```
+- `averageGridIntensityGCo2PerKwh`: optional; a labelled default (150
+  gCO2/kWh) is used if omitted.
+- `electricityPricePencePerKwh`: optional; if omitted, `financialOpportunity`
+  is returned as `{ available: false, reason }` rather than a guessed figure.
+- `selfConsumptionRateOverride`: optional 0–1; overrides the default
+  35%/65% (no-battery/with-battery) assumption.
+
+### Response — success (200)
+```json
+{
+  "ok": true,
+  "solarScore": {
+    "formulaVersion": "1.0.0",
+    "suitability": "High",
+    "suitabilitySubScore": 78,
+    "annualGenerationKwh": 3120,
+    "generationPerKwp": 891,
+    "monthlyGenerationKwh": [100, 166, 266, 320, 380, 400, 410, 370, 300, 210, 130, 90],
+    "solarResource": { "annualIrradiationKwhPerM2": 1080 },
+    "emissionsReduction": {
+      "annualKgCo2": 406,
+      "gridIntensityGCo2PerKwh": 130,
+      "isAssumedGridIntensity": false
+    },
+    "financialOpportunity": {
+      "available": true,
+      "indicativeAnnualSavingGBP": 300.30,
+      "selfConsumptionRateAssumed": 0.35,
+      "electricityPricePencePerKwh": 27.5
+    },
+    "confidence": "modelled-estimate",
+    "assumptions": ["Estimated and indicative only, based on the information provided. Actual results depend on installation, tariff, orientation, shading, consumption and other factors.", "..."],
+    "limitations": ["...", "Estimated and indicative only, based on the information provided. Actual results depend on installation, tariff, orientation, shading, consumption and other factors."],
+    "dataSources": ["PVGIS (via Phase 3 SolarAssessment)", "Supplied grid carbon-intensity figure", "User-provided electricity price"],
+    "calculatedAt": "2026-09-14T11:05:00.000Z"
+  }
+}
+```
+Note the mandated disclaimer sentence appears verbatim in both `assumptions`
+and `limitations` — never strip it out when displaying this to a user.
+
+### Response — failure
+| Status | Cause | Example `message` |
+|---|---|---|
+| 400 | Malformed body, or `solarAssessment` missing/didn't match the expected shape | "A valid solarAssessment (annualGenerationKwh, annualIrradiationKwhPerM2, assumptions.peakPowerKw) is required." |
+
+Unlike `/api/scores/green`, there is no 422 case — `solarAssessment` is a
+required, validated field, not one of several optional inputs, so a bad
+request is always a 400.
+
+---
+
 ## Planned routes (not yet implemented)
 
 | Route | Phase | Purpose |
 |---|---|---|
-| `GET /api/scores/solar/:propertyId` | 5 | Retrieve a stored SolarScore |
 | `POST /api/advisor/ask` | 7 | AI Advisor question, grounded in stored structured context |
 | `POST /api/action-plan/generate` | 8 | Generate a prioritised action plan |
 | `POST /api/auth/*` | 9 | Login/session endpoints |

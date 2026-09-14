@@ -22,9 +22,13 @@ src/app/                      → Next.js routes: pages + API route handlers (th
 src/server/adapters/          → One file per external data source. ONLY place
                                  that knows about a third-party API's shape.
 src/server/calculations/      → Pure, deterministic calculation engines (e.g.
-                                 GreenScore, Phase 4). No I/O, no network, no
-                                 LLM calls — see CALCULATIONS.md. Plain,
-                                 directly unit-testable functions.
+                                 GreenScore, SolarScore, Phase 4/5) plus
+                                 `mathUtils.ts` — small shared helpers
+                                 (`clamp`, `lerpScore`, `levelFor`) used by
+                                 more than one engine so their interpolation
+                                 and High/Medium/Low bucketing can't silently
+                                 drift apart. No I/O, no network, no LLM
+                                 calls — see CALCULATIONS.md.
 src/server/services/          → Business/domain logic that DOES need I/O:
                                  adapter orchestration, error translation,
                                  AI context construction.

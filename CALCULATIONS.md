@@ -115,19 +115,71 @@ was included. `strengths` lists included components scoring ≥70;
 `"1.0.0"`) is stored so a historical score remains interpretable if this
 formula changes later.
 
-## SolarScore (Phase 5)
-Built directly from `SolarAssessment` (Phase 3, PVGIS-derived):
-- **Solar suitability**: categorical (High/Medium/Low), derived from modelled
-  annual generation per kWp for the location relative to UK-wide typical
-  ranges — exact thresholds to be set from real PVGIS output ranges when
-  Phase 3/5 are implemented, not guessed now.
-- **Estimated annual PV generation**: taken directly from PVGIS, never
-  recalculated independently.
-- **Indicative financial opportunity**: only computed when sufficient inputs
-  exist (a plausible electricity price assumption, explicitly labelled as an
-  assumption); otherwise omitted rather than guessed.
-- Every SolarScore output carries `confidence` and `assumptionsJson` fields
-  (already in the Phase 0 schema — see `prisma/schema.prisma`).
+## SolarScore (Phase 5 — implemented, see `src/server/calculations/solarScore.ts`)
+
+Unlike GreenScore, a `SolarAssessment` (Phase 3) is a **required** input —
+there is no meaningful SolarScore without it, so it isn't an excludable
+component. Financial opportunity, however, is genuinely optional within the
+result, exactly as this section originally specified.
+
+### Solar suitability
+`generationPerKwp = annualGenerationKwh / assumptions.peakPowerKw`, then
+scored on a 0–100 scale against a typical UK reference range of ~700 (poor)
+to ~1,000 (good) kWh/kWp/year, using the same piecewise-linear approach as
+GreenScore, with a floor segment below 700 so a very poor site keeps
+differentiating downward instead of flatlining at "Medium" — mirroring the
+floor GreenScore's energy-efficiency component uses at its own bad end, just
+at the opposite end of this scale. Bucketed into High/Medium/Low using the
+project-wide ≥70/≥40/else convention (`levelFor` in `mathUtils.ts`, shared
+with GreenScore). The 700–1,000 reference range is an approximate, commonly
+cited figure, not a precise national dataset — verify against current
+PVGIS/industry figures before production use.
+
+### Estimated annual PV generation
+Taken directly from `SolarAssessment.annualGenerationKwh` — never
+recalculated independently, per this section's original requirement.
+
+### Indicative potential emissions reduction
+`annualKgCo2 = round(annualGenerationKwh * gridIntensityGCo2PerKwh / 1000)`.
+Uses a caller-supplied grid carbon-intensity figure (e.g. derived from Phase
+2 data) when given; otherwise falls back to a labelled default assumption of
+150 gCO2/kWh (an approximate recent UK grid average — this figure has fallen
+for years as renewables grow, so treat it as a dated reference and verify
+against NESO's own published annual average). This calculation assumes all
+generated electricity — self-consumed or exported — displaces grid
+electricity at that intensity, which holds regardless of self-consumption
+rate (unlike the financial calculation below).
+
+### Indicative financial opportunity
+Only computed when the caller supplies `electricityPricePencePerKwh` — no
+price is ever assumed, since guessing one risks exactly the kind of specific
+savings promise `PRODUCT_SPEC.md` forbids. When available:
+`indicativeAnnualSavingGBP = annualGenerationKwh * selfConsumptionRate * pricePencePerKwh / 100`.
+`selfConsumptionRate` defaults to 35% (no battery) or 65% (with battery) —
+rough, overridable approximations, not measured for the specific household —
+and the calculation explicitly excludes any export-tariff (e.g. Smart Export
+Guarantee) income for the unconsumed remainder.
+
+### Mandatory disclaimer language
+Every `SolarScoreResult` includes, verbatim, in both `assumptions` and
+`limitations`: *"Estimated and indicative only, based on the information
+provided. Actual results depend on installation, tariff, orientation,
+shading, consumption and other factors."* — the exact language this
+section's original brief required, exported as `SOLAR_SCORE_DISCLAIMER` so
+no caller can accidentally omit it.
+
+### Output shape
+```
+SolarScoreResult {
+  formulaVersion, suitability, suitabilitySubScore, annualGenerationKwh,
+  generationPerKwp, monthlyGenerationKwh, solarResource, emissionsReduction,
+  financialOpportunity, confidence, assumptions[], limitations[],
+  dataSources[], calculatedAt
+}
+```
+`confidence` is always `"modelled-estimate"`, carried through from PVGIS.
+`limitations` carries over the underlying `SolarAssessment`'s own limitations
+array plus the disclaimer above.
 
 ## Recommendation priority (Phase 8)
 Recommendations are ordered by a deterministic priority function of:

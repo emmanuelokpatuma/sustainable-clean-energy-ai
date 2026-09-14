@@ -7,7 +7,7 @@
 | 2 | NESO Carbon Intensity integration | ✅ Done (this delivery) |
 | 3 | PVGIS solar integration | ✅ Done (this delivery) |
 | 4 | Deterministic GreenScore engine | ✅ Done (this delivery) |
-| 5 | SolarScore | ⬜ Not started |
+| 5 | SolarScore | ✅ Done (this delivery) |
 | 6 | Energy Now (UI + interpretation) | ⬜ Not started |
 | 7 | AI Sustainability Advisor | ⬜ Not started |
 | 8 | Action Plans | ⬜ Not started |

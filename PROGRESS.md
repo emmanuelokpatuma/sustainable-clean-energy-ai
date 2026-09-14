@@ -204,3 +204,100 @@ GreenScore's Component 2 scoring approach (the irradiation thresholds
 introduced here could reasonably be shared rather than redefined) — see
 `CALCULATIONS.md`'s SolarScore section for the categorical suitability
 rating and indicative-financial-opportunity rules this phase should implement.
+
+## Phase 5 — SolarScore
+
+### What was built
+- `src/server/calculations/mathUtils.ts` — extracted `clamp`, `lerpScore`,
+  `levelFor` out of `greenScore.ts` into a shared module, since SolarScore
+  needed the exact same three functions. Pure refactor: `greenScore.ts`'s
+  behaviour and public exports are unchanged — its existing 27 tests were
+  the check that nothing broke, and they still describe the same file.
+- `src/server/calculations/solarScore.ts` — pure, no I/O, same discipline as
+  GreenScore. Takes a `SolarAssessment` as a **required** input (there's no
+  meaningful SolarScore without one, unlike GreenScore's excludable
+  components):
+  - **Suitability**: `annualGenerationKwh / peakPowerKw`, scored against a
+    ~700–1,000 kWh/kWp typical UK reference range. Caught and fixed a real
+    design gap while writing this: my first version flatlined every site
+    below 700 kWh/kWp at score 40 ("Medium") with no further differentiation
+    — an extremely poor site and a mediocre one would have looked identical.
+    Added a floor segment below 700 (mirroring the floor GreenScore's
+    energy-efficiency component already uses at its own bad end) so poor
+    sites keep descending toward "Low" instead of clustering at "Medium".
+  - **Estimated annual generation**: passed through from PVGIS unchanged,
+    never recalculated — per `PRODUCT_SPEC.md`'s explicit requirement.
+  - **Emissions reduction**: `annualGenerationKwh * gridIntensity / 1000`,
+    using a supplied grid-intensity figure when given, else a labelled
+    default (150 gCO2/kWh — an approximate recent UK average, explicitly
+    flagged as a dated reference). Deliberately independent of
+    self-consumption rate — exported electricity still displaces grid
+    generation elsewhere, so it counts toward emissions reduction even
+    though it doesn't count toward the financial saving below.
+  - **Financial opportunity**: `{ available: false, reason }` unless the
+    caller supplies a real `electricityPricePencePerKwh` — no price is ever
+    assumed, since guessing one risks the specific-savings-promise
+    `PRODUCT_SPEC.md` explicitly forbids. When available, uses a 35%
+    (no battery) or 65% (with battery) self-consumption assumption,
+    overridable, and explicitly excludes export-tariff income from the
+    figure.
+  - **Mandatory disclaimer**: the exact sentence `PRODUCT_SPEC.md` specifies
+    ("Estimated and indicative only... Actual results depend on
+    installation, tariff, orientation, shading, consumption and other
+    factors.") is exported as a constant and included verbatim in both
+    `assumptions` and `limitations` on every result, so it can't be silently
+    dropped by a caller.
+- `POST /api/scores/solar` — takes a `SolarAssessment`-shaped body directly
+  (e.g. the output of `/api/solar/assess`) rather than a `:propertyId`, for
+  the same reason `/api/scores/green` already deviated from its Phase-0
+  "planned routes" placeholder: there's no database-backed property to look
+  up yet (Phase 9). No service-layer wrapper, same rationale as
+  `/api/scores/green`.
+- 19 unit tests: suitability boundaries (including the floor-segment fix
+  above), emissions reduction with/without a supplied grid intensity and its
+  independence from battery status, all four financial-opportunity paths
+  (unavailable/no-price, unavailable/bad-price, default no-battery rate,
+  default with-battery rate, explicit override), disclaimer presence in both
+  arrays, monthly-generation passthrough, and data-sources accuracy.
+- Docs: `CALCULATIONS.md` (placeholder → real formulas, matching the
+  GreenScore section's level of detail), `ARCHITECTURE.md` (documents
+  `mathUtils.ts` and why it exists), `API.md` (route moved from planned to
+  documented, including the illustrative example's numbers hand-verified
+  against the actual formula so the docs don't quietly drift from the code),
+  `ROADMAP.md`.
+
+### What was NOT run, and why
+Same constraint as every prior phase: no network access in this environment,
+so `npm install`/`npm test`/`npm run typecheck`/`npm run build` have not been
+executed here. Every new test's expected value was hand-calculated against
+the formula before being written down (e.g. the financial-opportunity tests'
+£343/£637/£490 figures are `3500 × rate × 28 ÷ 100`, checkable by hand), and
+the mathUtils refactor was checked by re-reading every call site in
+`greenScore.ts` to confirm no behaviour changed. Still, run the real
+toolchain yourself:
+```bash
+npm install && npm run typecheck && npm test && npm run build
+```
+
+### Also not yet done (by design, deferred to later phases per ROADMAP.md)
+- No persistence: `POST /api/scores/solar` computes and returns a result but
+  never writes anything to the database (Phase 9).
+- The 700–1,000 kWh/kWp suitability range and 150 gCO2/kWh default grid
+  intensity are commonly-cited approximations, not verified against a
+  specific current authoritative source — same caveat as every other
+  assumption in this project.
+- No connection yet between GreenScore's Component 2 (renewable opportunity)
+  and SolarScore, despite both scoring related things from the same
+  `SolarAssessment` — they currently use different reference ranges
+  (irradiation-based vs. generation-per-kWp-based) and were kept
+  independent rather than unified, to avoid a cross-engine dependency for
+  V1. Worth revisiting if the two ever need to agree more precisely.
+- Phases 6–12 (Energy Now UI, AI Advisor, Action Plans, auth, security
+  hardening, investor demo, final QA) are not started.
+
+### Next recommended phase
+Phase 6: Energy Now (UI + interpretation). Builds on Phase 2's
+`CarbonIntensityService` — this phase adds the plain-language interpretation
+("Electricity is currently relatively low-carbon") and flexible-use timing
+suggestion that Phase 2 deliberately deferred, plus the actual dashboard
+screen.
