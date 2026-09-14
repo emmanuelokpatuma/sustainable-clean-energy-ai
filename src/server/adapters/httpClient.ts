@@ -49,6 +49,20 @@ export async function fetchJsonWithRetry(
       });
     }
 
+    // Any other 4xx (400, 401, 403, 422, ...) is a problem with this specific
+    // request, not a transient outage — classify it as invalid_input so
+    // callers don't confuse "PVGIS rejected this location" with "PVGIS is
+    // down", and so we never retry a request that can't succeed as-is.
+    // 429 (rate limited) is the one exception: retrying later is exactly
+    // the right response to that, so it gets its own kind below instead.
+    if (response.status >= 400 && response.status < 500 && response.status !== 429) {
+      throw new AdapterError({
+        kind: "invalid_input",
+        source,
+        message: `${source} rejected the request (status ${response.status}).`,
+      });
+    }
+
     if (response.status >= 500 && attempt < maxAttempts) {
       lastError = new Error(`HTTP ${response.status}`);
       continue; // retry once on a server error

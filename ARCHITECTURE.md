@@ -38,7 +38,7 @@ shape, and a provider swap never has to touch the UI.
 |---|---|---|
 | `PostcodesIoAdapter` | Postcodes.io | Implemented (Phase 1) |
 | `CarbonIntensityAdapter` | NESO Carbon Intensity API | Implemented (Phase 2) |
-| `PvgisAdapter` | EU PVGIS | Interface only (Phase 3) |
+| `PvgisAdapter` | European Commission PVGIS | Implemented (Phase 3) |
 | `NasaPowerAdapter` | NASA POWER | Interface only, future backup solar source |
 | `EurostatAdapter` | Eurostat | Interface only, future EU expansion |
 | `EiaAdapter` | US EIA | Interface only, future US expansion |
@@ -57,6 +57,23 @@ required (its failure fails the whole call), but forecast and generation mix are
 best-effort — if either fails, the snapshot still returns with that piece marked
 `{ available: false, reason }` rather than fabricating a value or discarding data
 that did succeed.
+
+`PvgisAdapter` (Phase 3) reuses `httpClient.ts` and, while building it, fixed a
+real bug in that shared helper: any 4xx status other than 404 was being
+classified as `temporarily_unavailable` — indistinguishable from a genuine
+network outage. PVGIS returns HTTP 400 (not 404) for a location outside its
+radiation database's coverage area, which is an `invalid_input` situation, not
+an outage. `httpClient.ts` now classifies any 4xx except 404 (already handled)
+and 429 (its own `rate_limited` kind) as `invalid_input`. This also makes
+`CarbonIntensityAdapter`'s error handling more correct in the same way, with no
+behaviour change to its existing tests (none of them exercise a non-404,
+non-429, non-5xx status).
+
+`PvgisAdapter` also deliberately returns `annualIrradiationKwhPerM2` as a raw
+modelled figure (PVGIS's `H(i)_y`), not a High/Medium/Low "solar suitability"
+rating — turning a physical quantity into a categorical rating is SolarScore's
+job (Phase 5), using thresholds fixed in `CALCULATIONS.md`, not something this
+adapter should decide on its own.
 
 ## Database tables (Phase 0 schema, not all populated until later phases)
 `users, properties, locations, energy_profiles, solar_assessments,

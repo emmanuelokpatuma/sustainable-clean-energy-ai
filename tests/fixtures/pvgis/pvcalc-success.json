@@ -1,0 +1,58 @@
+{
+  "inputs": {
+    "location": { "latitude": 51.501, "longitude": -0.1416, "elevation": 14 },
+    "meteo_data": { "radiation_db": "PVGIS-SARAH2", "year_min": 2005, "year_max": 2020 },
+    "mounting_system": {
+      "fixed": {
+        "slope": { "value": 35, "optimal": false },
+        "azimuth": { "value": 0, "optimal": false },
+        "type": "building"
+      }
+    },
+    "pv_module": { "technology": "c-Si", "peak_power": 3.5, "system_loss": 14 }
+  },
+  "outputs": {
+    "monthly": {
+      "fixed": [
+        { "month": 1,  "E_d": 3.2,  "E_m": 100, "H(i)_d": 1.1, "H(i)_m": 34,  "SD_m": 8 },
+        { "month": 2,  "E_d": 5.9,  "E_m": 166, "H(i)_d": 1.9, "H(i)_m": 53,  "SD_m": 10 },
+        { "month": 3,  "E_d": 8.6,  "E_m": 266, "H(i)_d": 2.8, "H(i)_m": 87,  "SD_m": 14 },
+        { "month": 4,  "E_d": 12.2, "E_m": 365, "H(i)_d": 3.9, "H(i)_m": 118, "SD_m": 17 },
+        { "month": 5,  "E_d": 13.4, "E_m": 415, "H(i)_d": 4.3, "H(i)_m": 133, "SD_m": 18 },
+        { "month": 6,  "E_d": 13.8, "E_m": 415, "H(i)_d": 4.5, "H(i)_m": 134, "SD_m": 17 },
+        { "month": 7,  "E_d": 12.8, "E_m": 398, "H(i)_d": 4.2, "H(i)_m": 129, "SD_m": 16 },
+        { "month": 8,  "E_d": 11.8, "E_m": 365, "H(i)_d": 3.8, "H(i)_m": 119, "SD_m": 15 },
+        { "month": 9,  "E_d": 9.4,  "E_m": 282, "H(i)_d": 3.0, "H(i)_m": 91,  "SD_m": 13 },
+        { "month": 10, "E_d": 6.4,  "E_m": 199, "H(i)_d": 2.1, "H(i)_m": 64,  "SD_m": 11 },
+        { "month": 11, "E_d": 3.9,  "E_m": 116, "H(i)_d": 1.3, "H(i)_m": 38,  "SD_m": 9 },
+        { "month": 12, "E_d": 2.7,  "E_m": 83,  "H(i)_d": 0.9, "H(i)_m": 27,  "SD_m": 7 }
+      ]
+    },
+    "totals": {
+      "fixed": {
+        "E_d": 8.68,
+        "E_m": 264.2,
+        "E_y": 3170,
+        "H(i)_d": 2.9,
+        "H(i)_y": 1058,
+        "SD_y": 96,
+        "l_aoi": 2.6,
+        "l_spec": "0.0",
+        "l_tg": 4.1,
+        "l_total": 18.9
+      }
+    }
+  },
+  "meta": {
+    "inputs": {
+      "location": { "description": "Selected location", "variables": {} },
+      "meteo_data": { "description": "Meteorological data", "variables": {} },
+      "mounting_system": { "description": "Mounting system", "choices": "Fixed" },
+      "pv_module": { "description": "PV module", "variables": {} }
+    },
+    "outputs": {
+      "monthly": { "type": "PV production", "timestamp": "generated" },
+      "totals": { "type": "PV production totals", "timestamp": "generated" }
+    }
+  }
+}

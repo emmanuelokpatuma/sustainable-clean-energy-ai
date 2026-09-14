@@ -109,11 +109,64 @@ that hasn't happened yet (a real API characteristic, not a bug) — never treat
 
 ---
 
+## `POST /api/solar/assess`
+**Status: implemented (Phase 3).**
+
+Returns a modelled solar PV assessment for a given latitude/longitude, via
+`SolarService` → `PvgisAdapter`. `POST` (unlike `/api/energy/current`'s `GET`)
+because a specific location is always required.
+
+### Request
+```json
+{ "latitude": 51.501, "longitude": -0.1416 }
+```
+- `latitude` (number, required, -90 to 90)
+- `longitude` (number, required, -180 to 180)
+- `assumptions` (object, optional): overrides for the default system
+  assumptions (`peakPowerKw`, `lossPercent`, `tiltDeg`, `azimuthDeg`,
+  `mountingType`, `radiationDatabase` — see `DEFAULT_SOLAR_ASSUMPTIONS` in
+  `pvgisAdapter.ts`). Not exposed in the UI yet; present so a future
+  "what if I had a bigger system" feature doesn't need a route change.
+
+### Response — success (200)
+```json
+{
+  "ok": true,
+  "solarAssessment": {
+    "annualGenerationKwh": 3170,
+    "monthlyGenerationKwh": [100, 166, 266, 365, 415, 415, 398, 365, 282, 199, 116, 83],
+    "annualIrradiationKwhPerM2": 1058,
+    "systemLossPercent": 18.9,
+    "assumptions": {
+      "peakPowerKw": 3.5, "lossPercent": 14, "tiltDeg": 35,
+      "azimuthDeg": 0, "mountingType": "building", "radiationDatabase": "PVGIS-SARAH2"
+    },
+    "confidence": "modelled-estimate",
+    "limitations": ["Modelled from typical-year solar radiation data, not a physical site survey.", "..."],
+    "source": "PVGIS",
+    "retrievedAt": "2026-09-14T11:05:00.000Z",
+    "isFixture": false
+  }
+}
+```
+
+`annualIrradiationKwhPerM2` is a raw modelled physical quantity (PVGIS's
+`H(i)_y`), not a High/Medium/Low rating — that categorisation is computed by
+SolarScore (Phase 5), not this route.
+
+### Response — failure
+| Status | Cause | Example `message` |
+|---|---|---|
+| 400 | Missing/malformed request body, or lat/lon out of range | "A valid latitude and longitude are required." |
+| 422 | Well-formed coordinates, but outside the solar radiation database's coverage area | "We couldn't get solar data for this location — it may be outside the coverage area of the solar database we use." |
+| 503 | PVGIS unreachable, timed out, or returned an unexpected shape | "We couldn't retrieve solar data right now. Please try again in a moment." |
+
+---
+
 ## Planned routes (not yet implemented)
 
 | Route | Phase | Purpose |
 |---|---|---|
-| `POST /api/solar/assess` | 3 | PVGIS-derived SolarAssessment for a location |
 | `POST /api/scores/green` | 4 | Compute/retrieve a GreenScore for a property |
 | `GET /api/scores/solar/:propertyId` | 5 | Retrieve a stored SolarScore |
 | `POST /api/advisor/ask` | 7 | AI Advisor question, grounded in stored structured context |

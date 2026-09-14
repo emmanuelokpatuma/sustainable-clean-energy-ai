@@ -16,7 +16,7 @@ representative recorded response (or a hand-built one that matches the documente
 schema when a live example wasn't available at scaffold time) with a comment
 noting its origin and date.
 
-## Current coverage (Phase 0/1/2)
+## Current coverage (Phase 0/1/2/3)
 - `tests/unit/postcode-validation.test.ts` — UK postcode format validation
 - `tests/unit/postcodes-io-adapter.test.ts` — adapter parsing, fixture-mode
 - `tests/integration/location-service.test.ts` — full resolve flow incl. failure paths
@@ -25,9 +25,14 @@ noting its origin and date.
 - `tests/integration/carbon-intensity-service.test.ts` — full Energy Now data
   flow incl. partial degradation (forecast/generation-mix unavailable) and
   total failure paths
+- `tests/unit/pvgis-adapter.test.ts` — response parsing, fixture-mode,
+  assumption overrides (incl. verifying they reach PVGIS as query params),
+  400-is-not-retried-and-is-invalid_input, schema mismatches (incl. wrong
+  monthly-entry count)
+- `tests/integration/solar-service.test.ts` — full assessment flow incl.
+  assumption pass-through, invalid-location vs unavailable error mapping
 
 ## Coverage still required (later phases)
-- PVGIS parsing + SolarAssessment normalisation
 - GreenScore boundary cases (missing data, all-zero, all-max)
 - Recommendation prioritisation ordering
 - AI context construction (grounding — no invented numbers)

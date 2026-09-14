@@ -1,0 +1,4 @@
+{
+  "status": "400 BAD REQUEST",
+  "message": "location outside of the coverage area of the selected radiation database"
+}
