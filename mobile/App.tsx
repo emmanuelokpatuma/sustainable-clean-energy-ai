@@ -114,6 +114,26 @@ export default function App() {
     [analysis],
   );
 
+  const quickActions = useMemo(
+    () => [
+      { label: 'EV charging', value: 'Later today', tone: '#22c55e' },
+      { label: 'Solar output', value: 'Strong daylight', tone: '#60a5fa' },
+      { label: 'Home usage', value: 'Energy efficient', tone: '#fbbf24' },
+    ],
+    [analysis],
+  );
+
+  const opportunityMessage = useMemo(() => {
+    if (!analysis.energy) return 'Check a postcode to unlock tailored recommendations.';
+    if (analysis.energy.current.index === 'low') {
+      return 'This is a good window to shift flexible usage and charge devices.';
+    }
+    if (analysis.energy.current.index === 'moderate') {
+      return 'A moderate grid mix means a good opportunity to schedule non-essential loads.';
+    }
+    return 'Grid intensity is elevated, so keep flexible use to the lower-carbon periods.';
+  }, [analysis]);
+
   const analyze = async () => {
     setLoading(true);
     setError(null);
@@ -230,6 +250,15 @@ export default function App() {
         ))}
       </View>
 
+      <View style={styles.quickActionRow}>
+        {quickActions.map((action) => (
+          <View key={action.label} style={[styles.quickAction, { borderColor: action.tone }]}>
+            <Text style={styles.quickActionLabel}>{action.label}</Text>
+            <Text style={[styles.quickActionValue, { color: action.tone }]}>{action.value}</Text>
+          </View>
+        ))}
+      </View>
+
       {analysis.location ? (
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Location</Text>
@@ -249,6 +278,11 @@ export default function App() {
           ) : null}
         </View>
       ) : null}
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Suggested next move</Text>
+        <Text style={styles.bodyText}>{opportunityMessage}</Text>
+      </View>
     </>
   );
 
@@ -563,5 +597,28 @@ const styles = StyleSheet.create({
   },
   tabLabelActive: {
     color: '#f8fafc',
+  },
+  quickActionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 18,
+  },
+  quickAction: {
+    flex: 1,
+    backgroundColor: '#0f172a',
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+  },
+  quickActionLabel: {
+    color: '#a8b3c7',
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  quickActionValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 5,
   },
 });
