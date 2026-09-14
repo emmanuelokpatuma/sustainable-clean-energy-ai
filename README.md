@@ -39,8 +39,10 @@ integration tests are marked to optionally run against live endpoints — see
 - `PRODUCT_SPEC.md` — what we're building and why
 - `ARCHITECTURE.md` — technical design and layering rules
 - `DATA_SOURCES.md` — every external data source, licence and status
-- `CALCULATIONS.md` — GreenScore / SolarScore formulas (added in Phase 4/5)
-- `SECURITY.md`, `PRIVACY.md` — added in the hardening phase
+- `CALCULATIONS.md` — GreenScore / SolarScore formula spec (fixed in Phase 0;
+  implemented in Phase 4/5)
+- `SECURITY.md`, `PRIVACY.md` — current posture, updated every phase that
+  touches secrets/data; full review is Phase 10
 - `API.md` — route/endpoint reference (grows each phase)
 - `ROADMAP.md` — phase-by-phase plan
 - `PROGRESS.md` — actual current state, updated every phase

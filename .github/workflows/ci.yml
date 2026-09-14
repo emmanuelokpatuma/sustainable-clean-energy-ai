@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    env:
+      # Tests must never depend on live third-party APIs or a real database.
+      USE_FIXTURE_DATA: "true"
+      DATABASE_URL: "postgresql://cleantech:cleantech@localhost:5432/cleantech_advisor?schema=public"
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Generate Prisma client
+        run: npm run db:generate
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run tests (fixtures only, no live network calls)
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+      # TODO (see SECURITY.md "open items"): add `npm audit` or an equivalent
+      # dependency vulnerability scan here before this project handles real
+      # user data. Not added yet so it isn't a silently-ignored red X — track
+      # it as a deliberate, visible gap instead.

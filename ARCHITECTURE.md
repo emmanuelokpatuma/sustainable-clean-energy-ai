@@ -7,8 +7,9 @@
   into a standalone service later without a rewrite.
 - **Database**: PostgreSQL via Prisma ORM. Relational, strong typing, easy migrations.
 - **Validation**: Zod for all external input (postcodes, API responses, request bodies).
-- **Testing**: Vitest for unit + integration tests; MSW (Mock Service Worker) to
-  intercept HTTP calls in tests so nothing depends on live third-party APIs.
+- **Testing**: Vitest for unit + integration tests. HTTP calls are mocked with
+  Vitest's built-in `vi.stubGlobal("fetch", ...)` — no extra mocking library —
+  so nothing depends on live third-party APIs.
 - **AI**: Anthropic API, called server-side only, never from the client bundle.
 - **Deployment target**: any Node 20+ host with a managed Postgres instance
   (e.g. Vercel + a managed Postgres provider, or a container platform). No

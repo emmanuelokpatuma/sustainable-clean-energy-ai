@@ -31,7 +31,6 @@
     "@vitest/coverage-v8": "^2.1.1",
     "eslint": "^8.57.0",
     "eslint-config-next": "14.2.13",
-    "msw": "^2.4.9",
     "prisma": "^5.20.0",
     "typescript": "^5.5.4",
     "vitest": "^2.1.1"
