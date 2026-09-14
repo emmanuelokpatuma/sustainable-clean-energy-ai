@@ -5,11 +5,11 @@ and an AI Sustainability Advisor. See `PRODUCT_SPEC.md` for the product spec and
 `ARCHITECTURE.md` for the technical design.
 
 ## Status
-This is a **Phase 0–3** build: project setup, docs, testing foundation,
+This is a **Phase 0–4** build: project setup, docs, testing foundation,
 database schema, the postcode/location service, GB electricity carbon-intensity
-integration (NESO), and PVGIS solar integration are implemented. Everything
-else in `ROADMAP.md` is not yet built. See `PROGRESS.md` for the authoritative
-current state.
+integration (NESO), PVGIS solar integration, and the deterministic GreenScore
+engine are implemented. Everything else in `ROADMAP.md` is not yet built.
+See `PROGRESS.md` for the authoritative current state.
 
 > This scaffold was generated without network access (no `npm install` or
 > `npm test` could be run in the build environment). Run the verification steps

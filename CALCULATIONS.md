@@ -21,7 +21,7 @@ implementation deviates, and explain why in `PROGRESS.md`.
 5. Version every formula (a `formulaVersion` field alongside each stored
    score) so historical scores remain interpretable if the formula changes.
 
-## GreenScore (Phase 4)
+## GreenScore (Phase 4 — implemented, see `src/server/calculations/greenScore.ts`)
 
 `GreenScoreResult.totalScore` (0–100) is a weighted sum of five component
 scores, each independently 0–100:
@@ -36,18 +36,84 @@ scores, each independently 0–100:
 
 `totalScore = round(0.25*efficiency + 0.25*solar + 0.20*carbonTiming + 0.15*cleantech + 0.15*progress)`
 
-Each component score's own sub-formula is defined when its phase is
-implemented (Phase 4), because it depends on the exact shape of upstream data
-(e.g. `SolarAssessment` fields from Phase 3) that doesn't exist yet. This
-table fixes the **weights** and **inputs** now so later work can't quietly
-redefine what GreenScore means.
+If a component's required input is entirely missing, it is **excluded** from
+the weighted sum and the remaining components' weights are renormalised to
+sum to 100% — never treated as a zero. If every component is excluded,
+`calculateGreenScore` returns `{ ok: false, reason: "insufficient_data" }`
+rather than a fabricated number. `GreenScoreResult.assumptions` always states
+which components (if any) were excluded and why.
 
-If a component's required input is entirely missing (e.g. no `SolarAssessment`
-exists yet for a property), that component is excluded from the weighted sum
-and the weights of the remaining components are renormalised to sum to 100% —
-`GreenScoreResult` must record which components were excluded and why, via its
-`assumptionsJson` field, so a 74 computed from 5 components is never confused
-with a 74 computed from 3.
+### Component 1 — Energy efficiency
+Compares `EnergyProfile.annualUsageKwh` against a three-band reference
+(low/medium/high), scored 100 → 70 → 40 → floor of 10, piecewise-linear
+between bands. Two benchmark sets are used depending on `hasGasHeating`:
+- **Electricity-only home** (`hasGasHeating: true`, or unknown): 1,800 /
+  2,700 / 4,100 kWh/year (commonly published UK "typical domestic
+  consumption value" style bands — an assumption, not this property's
+  measurement; verify against an authoritative current source, e.g. Ofgem's
+  published TDCVs, before production use).
+- **All-electric home** (`hasGasHeating: false`): 3,600 / 5,400 / 8,200
+  kWh/year — a rough ~2× approximation acknowledging that electric heating
+  draws from the same meter, not a validated benchmark. Flagged for
+  refinement once real usage data exists to calibrate it.
+Excluded entirely if `annualUsageKwh` is not provided.
+
+### Component 2 — Renewable / solar opportunity
+Scored from `SolarAssessment.annualIrradiationKwhPerM2` (Phase 3's raw
+physical solar-resource figure, decoupled from any assumed system size):
+950 kWh/m²/yr → 40, 1,200 kWh/m²/yr → 100, linear between and clamped
+outside. These reference points are approximate typical UK irradiation
+figures, not a precise dataset — flagged for verification against PVGIS's
+own long-run averages.
+
+**Known limitation**: this measures the location's solar *resource*, not
+whether solar is already installed — `EnergyProfile` does not currently
+track an existing installation. Adding a `hasSolarPanels`-style field is a
+candidate follow-up before this component can distinguish "great untapped
+opportunity" from "already captured."
+
+### Component 3 — Electricity-carbon optimisation opportunity
+Base score from the current NESO index on a fixed ordinal scale: very low=100,
+low=80, moderate=55, high=30, very high=10. If forecast values are available
+and their spread (max − min gCO2/kWh) is ≥100, a +10 "timing opportunity"
+boost is added (capped at 100) — a wide spread means shifting flexible usage
+to a cleaner period would make a real difference. No boost, and an explicit
+note, when forecast data isn't available.
+
+### Component 4 — CleanTech opportunity
+Averages three known/unknown signals from `EnergyProfile`: `hasEvCharger`,
+`hasBattery`, and non-gas heating (`hasGasHeating === false`). Each known
+signal contributes equally; unknown signals are excluded from the average
+(never assumed false). Score = `round(100 * achievedCount / knownCount)`.
+Excluded entirely if none of the three signals are known.
+
+Note the asymmetry with Component 2: here, "opportunity" is scored as
+*already-achieved adoption* (already has an EV charger = higher score),
+whereas Component 2 scores *available* potential regardless of whether it's
+been acted on. This is a genuine inconsistency in what "opportunity" means
+across components, inherited from the product brief's naming and made
+explicit here rather than silently smoothed over — Phase 5/8 should revisit
+whether a single consistent definition is worth adopting.
+
+### Component 5 — User action / progress
+`round(100 * completed / total)` from an `{ completed, total }` pair,
+clamped to 100. Excluded when not provided (this is what happens for all V1
+calls today — Phase 8, Action Plans, is what will supply real values) or
+when `total` is 0.
+
+### Output shape
+```
+GreenScoreResult {
+  totalScore, formulaVersion, componentScores[], strengths[],
+  opportunities[], assumptions[], dataSources[], calculatedAt
+}
+```
+`componentScores` includes every component (even excluded ones, with
+`score: null`) so a caller can always see the full picture, not just what
+was included. `strengths` lists included components scoring ≥70;
+`opportunities` lists those scoring <40. `formulaVersion` (currently
+`"1.0.0"`) is stored so a historical score remains interpretable if this
+formula changes later.
 
 ## SolarScore (Phase 5)
 Built directly from `SolarAssessment` (Phase 3, PVGIS-derived):

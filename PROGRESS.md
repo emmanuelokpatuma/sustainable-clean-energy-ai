@@ -124,3 +124,83 @@ the weights and inputs; this phase should implement exactly that spec against
 the real `EnergyProfile`, `SolarAssessment` (Phase 3) and `CarbonIntensityRecord`
 (Phase 2) shapes now available, with the renormalisation-on-missing-data rule
 and extensive boundary-case unit tests `CALCULATIONS.md` calls for.
+
+## Phase 4 — deterministic GreenScore engine
+
+### What was built
+- `src/server/calculations/greenScore.ts` — pure, deterministic, no I/O.
+  Implements exactly the weights/components fixed in `CALCULATIONS.md`
+  (0.25/0.25/0.20/0.15/0.15), plus the concrete sub-formula for each
+  component (now written up in `CALCULATIONS.md` itself, replacing its
+  Phase-0 placeholder text).
+- Missing-data handling: any component whose required input is absent is
+  excluded (`included: false, score: null`), and the remaining components'
+  weights are renormalised to sum to 1 — verified by a dedicated test that
+  checks a single included component ends up with `effectiveWeight` of
+  exactly 1, and that its own score alone becomes the total (never dragged
+  down by treating excluded components as zero).
+- Total-exclusion case: if every component lacks data, `calculateGreenScore`
+  returns `{ ok: false, reason: "insufficient_data", message }` instead of a
+  fabricated number — the same "never invent, degrade explicitly" pattern
+  used by the Phase 2/3 adapters, applied here to a pure calculation instead
+  of a network failure.
+- `strengths` / `opportunities` arrays generated from component scores
+  (≥70 / <40), and an `assumptions` array that always states which
+  components were excluded (if any), the "not an official government
+  rating" disclaimer, and which benchmark values were used.
+- `POST /api/scores/green` — takes the relevant subset of `EnergyProfile`,
+  `SolarAssessment`, `CarbonIntensityRecord`-shaped data, and action-plan
+  progress directly in the request body (no DB read — persistence is Phase
+  9, so this mirrors how `/api/solar/assess` takes lat/lon directly rather
+  than a stored property ID). Deliberately has **no service-layer wrapper**,
+  unlike the three adapter-backed routes — there's no I/O or
+  AdapterError-translation step to justify one; see the route file's own
+  comment.
+- **A documented, deliberate inconsistency**: Component 2 (renewable
+  opportunity) scores available *potential* regardless of whether it's acted
+  on, while Component 4 (cleantech opportunity) scores *already-achieved*
+  adoption. This mismatch comes from the product brief's own naming and
+  `EnergyProfile` not yet tracking "already has solar" — it's called out
+  explicitly in `CALCULATIONS.md` rather than papered over, flagged as a
+  question for Phase 5/8 to resolve.
+- 27 unit tests in `tests/unit/green-score.test.ts` covering every
+  component's boundary values, exclusion behaviour, the renormalisation
+  invariant, weighted-total arithmetic (hand-verified), strengths/
+  opportunities thresholds, and the always-present disclaimer.
+- Docs updated: `CALCULATIONS.md` (placeholder → real formulas),
+  `ARCHITECTURE.md` (new `src/server/calculations/` layer documented),
+  `API.md` (route moved from "planned" to documented with full
+  request/response/error shape), `ROADMAP.md`.
+
+### What was NOT run, and why
+Same environment constraint as every prior phase: no network access here, so
+`npm install`/`npm test`/`npm run typecheck`/`npm run build` have not been
+executed. Every boundary case in the 27 new tests was hand-calculated against
+the implementation to confirm expected values before being written down (e.g.
+the weighted-total test's `87.55 → 88` is arithmetic you can re-check by
+hand, not just asserted). Run the usual verification commands yourself:
+```bash
+npm install && npm run typecheck && npm test && npm run build
+```
+
+### Also not yet done (by design, deferred to later phases per ROADMAP.md)
+- No persistence: `POST /api/scores/green` computes and returns a result but
+  never writes a `GreenScore` row — the Prisma model already matches this
+  result's shape (from Phase 0), but writing to it needs Phase 9's DB wiring.
+- `userProgress` and (indirectly) the full picture this component needs both
+  depend on Phase 8 (Action Plans), which doesn't exist yet — every V1 call
+  today will have this component excluded.
+- The Component 2 / Component 4 "opportunity" definition mismatch noted above
+  is flagged, not resolved.
+- Reference bands (efficiency benchmarks, irradiation range) are commonly-
+  cited approximations, not verified against a specific authoritative source
+  — same caveat as every external-data fixture in this project.
+- Phases 5–12 (SolarScore, Energy Now UI, AI Advisor, Action Plans, auth,
+  security hardening, investor demo, final QA) are not started.
+
+### Next recommended phase
+Phase 5: SolarScore. Builds directly on Phase 3's `SolarAssessment` plus
+GreenScore's Component 2 scoring approach (the irradiation thresholds
+introduced here could reasonably be shared rather than redefined) — see
+`CALCULATIONS.md`'s SolarScore section for the categorical suitability
+rating and indicative-financial-opportunity rules this phase should implement.

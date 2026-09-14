@@ -21,17 +21,26 @@
 src/app/                      → Next.js routes: pages + API route handlers (thin)
 src/server/adapters/          → One file per external data source. ONLY place
                                  that knows about a third-party API's shape.
-src/server/services/          → Business/domain logic: location, calculations,
-                                 recommendations, AI context construction.
+src/server/calculations/      → Pure, deterministic calculation engines (e.g.
+                                 GreenScore, Phase 4). No I/O, no network, no
+                                 LLM calls — see CALCULATIONS.md. Plain,
+                                 directly unit-testable functions.
+src/server/services/          → Business/domain logic that DOES need I/O:
+                                 adapter orchestration, error translation,
+                                 AI context construction.
 src/server/db/                → Prisma client singleton + repository-style helpers.
 src/server/lib/               → Cross-cutting: env validation, logging, errors.
 prisma/schema.prisma          → Database schema.
 tests/                        → Unit + integration tests, fixtures for offline use.
 ```
 
-Rule: **API route handlers call services; services call adapters.** Route handlers
-never call an adapter directly, so a UI change never has to know about NESO's JSON
-shape, and a provider swap never has to touch the UI.
+Rule: **API route handlers call services or the calculation engine directly;
+services call adapters.** A route may skip a service wrapper when there's no
+I/O or error-translation step worth one — see
+`src/app/api/scores/green/route.ts`'s own comment on why it calls
+`calculateGreenScore` directly. The calculation engine itself never calls an
+adapter or the network, which is what keeps GreenScore deterministic,
+side-effect-free, and testable as plain functions.
 
 ## External data adapters (interfaces defined, some implemented in later phases)
 | Adapter | Source | Status in this scaffold |

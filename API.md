@@ -163,11 +163,80 @@ SolarScore (Phase 5), not this route.
 
 ---
 
+## `POST /api/scores/green`
+**Status: implemented (Phase 4).**
+
+Computes a GreenScore from whatever inputs are supplied in the request body —
+this route does not read from the database (persistence is Phase 9); it's a
+pure calculation over data the caller already has (e.g. from the Phase 1–3
+routes above). See `CALCULATIONS.md` for the full formula.
+
+### Request
+All fields are optional, but at least one must be provided or the request
+fails with 422 — see below.
+```json
+{
+  "energyProfile": {
+    "annualUsageKwh": 2700,
+    "hasGasHeating": true,
+    "hasEvCharger": false,
+    "hasBattery": false
+  },
+  "solarAssessment": { "annualIrradiationKwhPerM2": 1080 },
+  "carbonIntensity": {
+    "currentIndex": "moderate",
+    "forecastValues": [140, 121, 98, 187, 245, 132]
+  },
+  "actionProgress": { "completed": 2, "total": 5 }
+}
+```
+- `carbonIntensity.forecastValues`: an array of forecast gCO2/kWh numbers (the
+  `forecast` field from each period returned by `GET /api/energy/current`),
+  used only to gauge how much variability exists — not stored or echoed back.
+
+### Response — success (200)
+```json
+{
+  "ok": true,
+  "greenScore": {
+    "totalScore": 74,
+    "formulaVersion": "1.0.0",
+    "componentScores": [
+      {
+        "key": "energyEfficiency",
+        "label": "Energy efficiency",
+        "included": true,
+        "score": 70,
+        "baseWeight": 0.25,
+        "effectiveWeight": 0.25,
+        "level": "High",
+        "explanation": "Annual usage of 2,700 kWh compared against typical UK household bands."
+      }
+    ],
+    "strengths": ["Energy efficiency: ..."],
+    "opportunities": [],
+    "assumptions": ["GreenScore is our own transparency-focused score, not an official government rating."],
+    "dataSources": ["User-provided energy profile"],
+    "calculatedAt": "2026-09-14T11:05:00.000Z"
+  }
+}
+```
+`componentScores` always lists all five components, even excluded ones
+(`included: false, score: null`), so a client can show what wasn't assessed
+and why, not just the components that were.
+
+### Response — failure
+| Status | Cause | Example `message` |
+|---|---|---|
+| 400 | Malformed request body, or a field didn't match the expected shape | "One or more provided fields did not match the expected shape." |
+| 422 | Every input field was omitted (or `actionProgress.total` was 0 with nothing else provided) — nothing to compute a score from | "Not enough information was provided to calculate a GreenScore. Provide at least one of: an energy profile, a solar assessment, carbon-intensity data, or action-plan progress." |
+
+---
+
 ## Planned routes (not yet implemented)
 
 | Route | Phase | Purpose |
 |---|---|---|
-| `POST /api/scores/green` | 4 | Compute/retrieve a GreenScore for a property |
 | `GET /api/scores/solar/:propertyId` | 5 | Retrieve a stored SolarScore |
 | `POST /api/advisor/ask` | 7 | AI Advisor question, grounded in stored structured context |
 | `POST /api/action-plan/generate` | 8 | Generate a prioritised action plan |
