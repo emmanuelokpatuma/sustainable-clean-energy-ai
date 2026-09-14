@@ -56,7 +56,7 @@ attempt to read a `location` field from it.
 ---
 
 ## `GET /api/energy/current`
-**Status: implemented (Phase 2).**
+**Status: implemented (Phase 2; `interpretation` added in Phase 6).**
 
 Returns current and forecast GB electricity carbon intensity plus the current
 generation mix, via `CarbonIntensityService` → `CarbonIntensityAdapter`. Read-only
@@ -90,9 +90,31 @@ file originally planned before the route existed (see `PROGRESS.md`).
     "source": "NESO Carbon Intensity API",
     "retrievedAt": "2026-09-14T11:05:00.000Z",
     "isFixture": false
+  },
+  "interpretation": {
+    "currentSummary": "Electricity is currently at a moderate carbon intensity.",
+    "currentIndex": "moderate",
+    "flexibleUseSuggestion": {
+      "available": true,
+      "from": "2026-09-14T13:00Z",
+      "to": "2026-09-14T13:30Z",
+      "timingLabel": "later today (afternoon)",
+      "forecastGCo2PerKwh": 98,
+      "index": "low",
+      "message": "Later today (afternoon) may be a better time for flexible electricity use."
+    },
+    "essentialServicesCaveat": "This applies to flexible, discretionary electricity use only — things like EV charging, washing machines, dishwashers, or battery charging. It is not a suggestion to change heating or any other essential service.",
+    "forecastDisclaimer": "This is based on a forecast, not a certainty — actual grid conditions can change."
   }
 }
 ```
+`interpretation` is computed by the pure `interpretEnergyNow` engine
+(`CALCULATIONS.md`) from the exact same `energyNow` data in this response —
+the two can never disagree because one isn't fetched separately from the
+other. When `energyNow.forecast.available` is `false`, or no forecast period
+meaningfully beats the current value, `flexibleUseSuggestion` is
+`{ available: false, reason }` instead — a client should show the `reason`
+as plain text, not treat it as an error.
 
 Note the partial-degradation shape: `forecast` and `generationMix` are each
 either `{ available: true, ... }` or `{ available: false, reason }`. A client
@@ -106,6 +128,12 @@ that hasn't happened yet (a real API characteristic, not a bug) — never treat
 |---|---|---|
 | 400 | `forecastHours` present but not a positive number | "forecastHours must be a positive number." |
 | 503 | Current intensity (the required piece) unreachable, timed out, or malformed after retry | "Live electricity carbon-intensity data is temporarily unavailable. Please try again shortly." |
+
+### Screen
+`src/app/energy-now/page.tsx` (Phase 6) — fetches this route once and renders
+the current-conditions summary, the flexible-use suggestion (or its reason),
+the generation mix, and a "Why?" toggle showing the raw underlying numbers,
+source, and retrieval time.
 
 ---
 

@@ -301,3 +301,80 @@ Phase 6: Energy Now (UI + interpretation). Builds on Phase 2's
 ("Electricity is currently relatively low-carbon") and flexible-use timing
 suggestion that Phase 2 deliberately deferred, plus the actual dashboard
 screen.
+
+## Phase 6 — Energy Now (UI + interpretation)
+
+### What was built
+- `src/server/calculations/energyNowInterpretation.ts` — a pure,
+  deterministic, rule-based (not LLM) translation of Phase 2's raw
+  carbon-intensity data into plain language: a one-sentence current summary
+  from a fixed 5-entry lookup table, and a flexible-use timing suggestion
+  that only surfaces when a forecast period is at least 15 gCO2/kWh cleaner
+  than current (a documented judgement-call threshold, not a published
+  standard) — never suggesting a change for a negligible difference.
+- Timing labels are deliberately coarse and honest: "later today (afternoon)"
+  / "tomorrow morning" for anything within the next day, and an explicit
+  "beyond the next day, treat as indicative only" framing for anything
+  further out, rather than inventing a specific day-part label a
+  half-hourly forecast can't really support that far ahead.
+- `essentialServicesCaveat` and `forecastDisclaimer` are included, verbatim,
+  on every result — covering two explicit `PRODUCT_SPEC.md` requirements for
+  this phase: never imply changing heating/essential services, and never
+  overstate a forecast's certainty.
+- `GET /api/energy/current` (Phase 2's route) now also returns
+  `interpretation`, computed from the exact same fetch as `energyNow` in the
+  same response — chosen over a separate endpoint so the two can never
+  drift out of sync with each other.
+- `src/app/energy-now/page.tsx` — the actual screen: a summary card colour-
+  coded by index, the flexible-use suggestion (or its reason when
+  unavailable), the generation mix, and a "Why?" toggle exposing the raw
+  current/forecast numbers, source, and retrieval time. Same
+  loading/success/error state pattern and plain inline-styled approach as
+  Phase 1's location screen, for consistency.
+- 14 unit tests (10 test blocks, one parameterised across all 5 NESO index
+  labels) covering: every current-summary sentence, the caveat/disclaimer
+  always being present, forecast-unavailable passthrough, all-null-forecast
+  handling, the meaningful-improvement threshold in both directions,
+  actual-vs-forecast fallback for the current value, and all three timing-
+  label buckets (today/tomorrow/beyond).
+- Docs: `CALCULATIONS.md` gains an "Energy Now interpretation" section
+  (this isn't a *score*, but follows the same no-LLM, documented-thresholds
+  discipline, so it lives alongside GreenScore/SolarScore rather than
+  going undocumented), `ARCHITECTURE.md`'s calculations-folder description
+  updated, `API.md`'s existing `GET /api/energy/current` entry updated in
+  place (not a new route — see its "Status" line) with the new response
+  field and screen reference, `ROADMAP.md`.
+
+### What was NOT run, and why
+Same constraint as every prior phase: no network access here, so
+`npm install`/`npm test`/`npm run typecheck`/`npm run build`/`npm run dev`
+have not been executed. Every test's expected string/threshold was checked
+against the actual implementation constants before being written down (e.g.
+the "15 gCO2/kWh" threshold and "already close to the best" reason text are
+copied from the source, not guessed). Run the real toolchain yourself:
+```bash
+npm install && npm run typecheck && npm test && npm run build && npm run dev
+```
+then visit `/energy-now` to see the screen render — that visual check is
+one this environment genuinely cannot do at all (no browser, no dev server).
+
+### Also not yet done (by design, deferred to later phases per ROADMAP.md)
+- The 15 gCO2/kWh "meaningful improvement" threshold is a judgement call
+  made while implementing this phase, not derived from any published
+  standard — flagged for revisiting once real usage/feedback exists.
+- No navigation link from any other screen to `/energy-now` yet — Phase 11
+  (or whichever phase builds the overall app shell/navigation) should wire
+  screens together; each is currently reachable only by its own URL.
+- No persistence of interpreted results — every visit recomputes from a
+  fresh (or fixture) fetch, consistent with every other phase so far.
+- Phases 7–12 (AI Advisor, Action Plans, auth, security hardening, investor
+  demo, final QA) are not started.
+
+### Next recommended phase
+Phase 7: the AI Sustainability Advisor. This is the phase `PRODUCT_SPEC.md`
+and `PROGRESS.md`'s prior entries flag as needing particular care — the AI
+must explain the GreenScore/SolarScore/Energy Now data already computed by
+Phases 2–6, never invent numbers, and never guarantee savings. Building the
+structured grounding-context object (drawing on the exact result shapes from
+`calculateGreenScore`, `calculateSolarScore`, and `interpretEnergyNow`) and a
+grounding evaluation dataset should come before any conversational UI.

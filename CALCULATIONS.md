@@ -181,6 +181,40 @@ SolarScoreResult {
 `limitations` carries over the underlying `SolarAssessment`'s own limitations
 array plus the disclaimer above.
 
+## Energy Now interpretation (Phase 6 — implemented, see `src/server/calculations/energyNowInterpretation.ts`)
+
+Not a score — a deterministic, rule-based translation of Phase 2's raw
+carbon-intensity data into the plain-language summary and timing suggestion
+`PRODUCT_SPEC.md`'s Energy Now screen calls for. Still governed by the same
+ground rules as GreenScore/SolarScore: no LLM call, and never claim certainty
+where the underlying data is only a forecast.
+
+- **Current summary**: a fixed lookup table from the 5 NESO index labels to a
+  one-sentence description (e.g. "Electricity is currently relatively
+  low-carbon."). Fixed copy, not generated text, so the "never overstate
+  certainty" requirement is a matter of reviewing five sentences once rather
+  than trusting freeform generation every time.
+- **Flexible-use suggestion**: finds the forecast period with the lowest
+  gCO2/kWh value, but only surfaces it if it's at least 15 gCO2/kWh cleaner
+  than the current value — a judgement-call threshold (not a published
+  standard) to avoid suggesting a change for a negligible difference.
+  Unavailable, with a reason, when the forecast itself is unavailable, when
+  no period has a usable value, or when nothing meaningfully beats the
+  current conditions.
+- **Timing labels** are deliberately coarse and honest about their own
+  precision: "later today (afternoon)" or "tomorrow morning" for periods
+  within the next day, falling back to an explicit "beyond the next day,
+  treat as indicative only" framing for anything further out, rather than
+  inventing a specific day-part label a half-hourly forecast can't really
+  support that far ahead.
+- **`essentialServicesCaveat`** is included on every result, verbatim,
+  stating the suggestion covers flexible/discretionary use only (EV
+  charging, washing machines, dishwashers, battery charging) and is never a
+  suggestion to change heating or other essential services — per
+  `PRODUCT_SPEC.md`'s explicit instruction not to do that.
+- **`forecastDisclaimer`** is likewise included on every result: "This is
+  based on a forecast, not a certainty — actual grid conditions can change."
+
 ## Recommendation priority (Phase 8)
 Recommendations are ordered by a deterministic priority function of:
 1. Estimated impact category weight (carbon > cost > resilience, configurable)

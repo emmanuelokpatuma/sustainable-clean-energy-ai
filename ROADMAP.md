@@ -8,7 +8,7 @@
 | 3 | PVGIS solar integration | ✅ Done (this delivery) |
 | 4 | Deterministic GreenScore engine | ✅ Done (this delivery) |
 | 5 | SolarScore | ✅ Done (this delivery) |
-| 6 | Energy Now (UI + interpretation) | ⬜ Not started |
+| 6 | Energy Now (UI + interpretation) | ✅ Done (this delivery) |
 | 7 | AI Sustainability Advisor | ⬜ Not started |
 | 8 | Action Plans | ⬜ Not started |
 | 9 | Authentication / privacy layer | ⬜ Not started |
