@@ -1,0 +1,14 @@
+{
+  "id": "msg_fixture_001",
+  "type": "message",
+  "role": "assistant",
+  "content": [
+    {
+      "type": "text",
+      "text": "Based on your GreenScore of 74/100, your biggest opportunity right now is solar: your SolarScore shows High suitability with an estimated annual generation of 3,500 kWh at this location. That's a modelled estimate from PVGIS, not a survey of your actual roof, so a qualified MCS-certified installer would need to confirm feasibility before you commit to anything. Alongside that, electricity is currently at a moderate carbon intensity, and there's a cleaner window forecast for later today — a good time to run any flexible appliances if that fits your routine."
+    }
+  ],
+  "model": "claude-sonnet-5",
+  "stop_reason": "end_turn",
+  "usage": { "input_tokens": 512, "output_tokens": 96 }
+}

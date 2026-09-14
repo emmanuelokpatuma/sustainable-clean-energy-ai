@@ -30,12 +30,23 @@ src/server/calculations/      → Pure, deterministic calculation/interpretation
                                  bucketing can't silently drift apart. No I/O,
                                  no network, no LLM calls — see CALCULATIONS.md.
 src/server/services/          → Business/domain logic that DOES need I/O:
-                                 adapter orchestration, error translation,
-                                 AI context construction.
+                                 adapter orchestration, error translation.
+src/server/advisor/           → Phase 7's AI Advisor-specific pure logic:
+                                 `groundingContext.ts` (assembles already-
+                                 computed results into the structured context
+                                 the AI is allowed to reason from) and
+                                 `systemPrompt.ts` (the fixed rules + safety
+                                 constraints). Both pure — no I/O — kept
+                                 separate from `calculations/` since they're
+                                 specific to the AI Advisor feature rather
+                                 than general-purpose scoring engines.
 src/server/db/                → Prisma client singleton + repository-style helpers.
-src/server/lib/               → Cross-cutting: env validation, logging, errors.
-prisma/schema.prisma          → Database schema.
-tests/                        → Unit + integration tests, fixtures for offline use.
+src/server/lib/                → Cross-cutting: env validation, logging, errors.
+prisma/schema.prisma           → Database schema.
+tests/                         → Unit + integration tests, fixtures for offline use.
+tests/eval/                    → The AI Advisor's evaluation dataset and harness
+                                 (PRODUCT_SPEC.md, Phase 7) — a live-model eval,
+                                 not a vitest unit test; see tests/eval/README.md.
 ```
 
 Rule: **API route handlers call services or the calculation engine directly;
@@ -52,6 +63,7 @@ side-effect-free, and testable as plain functions.
 | `PostcodesIoAdapter` | Postcodes.io | Implemented (Phase 1) |
 | `CarbonIntensityAdapter` | NESO Carbon Intensity API | Implemented (Phase 2) |
 | `PvgisAdapter` | European Commission PVGIS | Implemented (Phase 3) |
+| `AiAdvisorAdapter` | Anthropic API | Implemented (Phase 7) |
 | `NasaPowerAdapter` | NASA POWER | Interface only, future backup solar source |
 | `EurostatAdapter` | Eurostat | Interface only, future EU expansion |
 | `EiaAdapter` | US EIA | Interface only, future US expansion |

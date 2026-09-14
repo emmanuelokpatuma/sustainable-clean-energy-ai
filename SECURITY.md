@@ -46,11 +46,27 @@ and a human/legal review have both happened.
   (or a tool like Dependabot/Snyk) should run in the CI workflow before
   launch — see `.github/workflows/ci.yml`, where this is called out as a
   TODO rather than silently omitted.
-- **Prompt injection risk** (relevant from Phase 7 onward): the AI Advisor
-  will receive structured application data, not raw external documents, which
-  limits injection surface — but any future feature that feeds
-  externally-sourced free text (e.g. a user's own notes) into the AI context
-  needs explicit review before that happens, not after.
+- **Prompt injection (Phase 7, AI Advisor)**: mitigated, not eliminated.
+  The system prompt (`src/server/advisor/systemPrompt.ts`) wraps the
+  structured grounding context in explicit `<structured_data>` delimiters
+  and instructs the model that content inside those tags — and anything in
+  the user's own message — is untrusted data, never an instruction that can
+  override the hard rules. This matters because the grounding context can
+  itself carry attacker-controlled text before Phase 8 exists (e.g. a future
+  user-submitted note), not just the user's own chat message — the eval
+  dataset's `prompt_injection` category (`tests/eval/advisor-eval-dataset.ts`,
+  4 cases) specifically tests an injection attempt embedded in the structured
+  data itself, not just the question. This has NOT been verified against a
+  live model yet (no network access in this environment) — running
+  `tests/eval/run-advisor-eval.ts` is required before trusting this
+  mitigation in production, and a delimiter-based defence is inherently
+  probabilistic, not a guarantee, for any LLM-based system.
+- **AI provider availability/API key handling**: `AiAdvisorAdapter` never
+  exposes `ANTHROPIC_API_KEY` to the client (server-side route handler only,
+  consistent with every other secret in this project) and returns a generic
+  "not configured correctly" message rather than leaking the underlying "no
+  API key" detail to the client — see `aiAdvisorService.ts`'s error mapping
+  and its own test for this.
 - **Database access control**: no row-level security or per-tenant isolation
   has been designed yet, since there is only a single-tenant Prisma client
   today. Needed before multi-user production use.

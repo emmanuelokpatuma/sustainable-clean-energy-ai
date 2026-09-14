@@ -14,6 +14,12 @@ const envSchema = z.object({
     .default("https://api.carbonintensity.org.uk"),
   PVGIS_BASE_URL: z.string().url().default("https://re.jrc.ec.europa.eu/api"),
   ANTHROPIC_API_KEY: z.string().optional(),
+  // No default hard-coded to a specific dated model snapshot without a
+  // clear "verify this is still current" note — the model landscape moves
+  // faster than this codebase will be revisited. "claude-sonnet-5" is
+  // Anthropic's current mainline model as of when this default was written;
+  // check Anthropic's docs for what's current before deploying.
+  ANTHROPIC_MODEL: z.string().default("claude-sonnet-5"),
   USE_FIXTURE_DATA: z
     .string()
     .optional()

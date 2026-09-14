@@ -28,13 +28,22 @@ SolarScore, Energy Now, AI Advisor). When in doubt, don't store it.
   This section will be expanded when that phase lands — it is listed here now
   so the schema's `User.email` field has a stated justification.
 
-### AI Advisor conversations (Phase 7 — not yet implemented)
-- Planned: the structured, non-personal *grounding context* (GreenScore,
-  SolarScore, Energy Now data — see `CALCULATIONS.md`) sent to the AI will be
-  stored for support/debugging, per `AiConversation.contextJson`. Free-text
-  conversation content will be minimised — the exact retention policy is a
-  Phase 7 decision, not yet made, and will be documented here before that
-  phase is considered complete.
+### AI Advisor conversations (Phase 7 — implemented, no persistence yet)
+- **Current reality**: nothing is written to a database yet — persistence
+  (the `AiConversation` model) is Phase 9 (auth/DB wiring), which doesn't
+  exist yet, same as every other phase's data so far. The conversation history
+  a user sees lives only in their browser session for the duration of the chat.
+- **What is sent to the AI provider (Anthropic) per question**: the structured
+  grounding context (GreenScore/SolarScore/Energy Now results and their own
+  already-minimised location fields — see below), the capped recent
+  conversation history (last 12 messages, enforced server-side regardless of
+  what a client sends — see `aiAdvisorService.ts`), and the current question.
+  Nothing else.
+- **When persistence is added (Phase 9)**: the plan remains to store the
+  structured grounding context (`AiConversation.contextJson`) for
+  support/debugging, with free-text conversation content minimised — the
+  exact retention policy is still a Phase 9 decision, not made yet, and will
+  be documented here before that phase is considered complete.
 
 ## What is never collected
 - Precise property information (exact address, floor plan, meter numbers)
@@ -48,10 +57,12 @@ SolarScore, Energy Now, AI Advisor). When in doubt, don't store it.
 - **Postcodes.io / NESO / PVGIS**: only the postcode (Postcodes.io) or
   resolved coordinates (PVGIS) are sent — see `DATA_SOURCES.md` for exactly
   what each adapter transmits.
-- **AI provider (Anthropic)**: only the structured application context
-  described above is planned to be sent — never a raw postcode, name, or
-  account identifier. This constraint should be checked explicitly when
-  Phase 7 (AI Advisor) is implemented, not assumed.
+- **AI provider (Anthropic)**: the structured application context described
+  above, including the outward postcode and region/district (the same
+  already-minimised location fields used throughout the rest of this
+  project — never the full precise postcode, a name, or an account
+  identifier, since none of those are collected from the user in the first
+  place — see Location above).
 
 ## Consent & messaging
 The "Settings / Data & Privacy" screen (`PRODUCT_SPEC.md`, screen 9) is

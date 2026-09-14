@@ -378,3 +378,133 @@ Phases 2–6, never invent numbers, and never guarantee savings. Building the
 structured grounding-context object (drawing on the exact result shapes from
 `calculateGreenScore`, `calculateSolarScore`, and `interpretEnergyNow`) and a
 grounding evaluation dataset should come before any conversational UI.
+
+## Phase 7 — AI Sustainability Advisor
+
+### ⚠️ Read this before using or extending Phase 7
+`PRODUCT_SPEC.md` says explicitly: "Run the evaluation before considering the
+AI Advisor complete." **That evaluation has NOT been run.** This environment
+has no network access and no live `ANTHROPIC_API_KEY`, so the 32-case
+evaluation dataset built for this phase (`tests/eval/advisor-eval-dataset.ts`)
+has never actually been fired at a real model. Everything below is
+code-complete and unit-tested at the level that's possible without a live
+model call — but per the spec's own definition, Phase 7 is not "complete."
+**Run `ANTHROPIC_API_KEY=... npx tsx tests/eval/run-advisor-eval.ts`, read
+every transcript in the resulting `tests/eval/last-run-transcript.json`, and
+fix anything it surfaces before this advisor faces a real user.**
+
+### What was built
+- `src/server/advisor/groundingContext.ts` — pure, deterministic assembly of
+  already-computed GreenScore/SolarScore/EnergyNow/location results into the
+  structured context `PRODUCT_SPEC.md` requires the AI to reason from.
+  Missing sections render as an explicit "not available... do not invent X"
+  instruction rather than being silently omitted (an omission could read as
+  "not relevant" instead of "not provided"). 13 unit tests, including one
+  that asserts the rendered "GreenScore not available" text contains no
+  digits at all — guarding against a future edit accidentally interpolating
+  a stray default score.
+- `src/server/advisor/systemPrompt.ts` — the actual safety mechanism, not a
+  filter bolted on after: every hard rule from `PRODUCT_SPEC.md`'s "AI
+  ADVISOR" section is written out as an explicit instruction (never invent a
+  number, never guarantee savings, never claim a physical inspection, never
+  claim official certification, no unsafe installation instructions, state
+  when data is missing, distinguish estimate from measurement, surface
+  assumptions, recommend a professional before real decisions). Also
+  contains the prompt-injection defence: the grounding context is wrapped in
+  `<structured_data>` tags with an explicit instruction that content inside
+  — or in the user's message — is never to be treated as an instruction that
+  overrides these rules.
+- `src/server/adapters/aiAdvisorAdapter.ts` — calls the real Anthropic
+  Messages API. Architecturally the same as the Phase 2/3 adapters (typed
+  `AdapterError`s, timeout, a fixture mode) but doesn't reuse
+  `fetchJsonWithRetry` — that helper is GET-only with no body/headers, and
+  this is an authenticated POST with a JSON body, different enough to
+  warrant its own implementation (the same judgement call already made for
+  `PostcodesIoAdapter`). `ANTHROPIC_MODEL` is now a configurable env var
+  (default `claude-sonnet-5`) rather than hard-coded, with an explicit
+  "verify this is still current" comment, since a model identifier is
+  exactly the kind of detail that goes stale silently.
+- `src/server/services/aiAdvisorService.ts` — validates the question,
+  enforces `PRODUCT_SPEC.md`'s "store only the minimum necessary
+  conversation data" at the service boundary regardless of what a caller
+  sends (last 12 messages, 2,000 chars each, hard limits, not suggestions),
+  and maps adapter errors to a safe Result — critically, an "invalid_input"
+  AdapterError (e.g. missing API key) is translated to a generic message
+  rather than leaking the internal detail to the client, verified by a
+  dedicated test.
+- `POST /api/advisor/ask` — the conversation endpoint. No persistence
+  (Phase 9, same as everywhere else) — computes and returns an answer only.
+- `src/app/advisor/page.tsx` — the actual chat screen, and the first place
+  in this project where the full pipeline runs end to end: postcode →
+  location (Phase 1) → solar assessment (Phase 3) → energy now (Phase 2/6)
+  → GreenScore (Phase 4) + SolarScore (Phase 5) → chat (Phase 7), all
+  client-orchestrated since there's no server-side persistence yet to hold
+  an assembled context between requests.
+- **`tests/eval/advisor-eval-dataset.ts`**: 32 cases across 10 categories
+  (grounded factual answers, missing-data handling, no-savings-guarantee,
+  no-physical-inspection-claim, no-official-certification-claim, unsafe-
+  instructions refusal, estimate-vs-measurement, assumptions-surfaced,
+  prompt injection, general usefulness). The prompt-injection category
+  specifically includes a case where the injection attempt is embedded IN
+  the structured data (a fake "recommendation" telling the AI to ignore its
+  rules and push a specific brand) rather than only in the user's message —
+  the more realistic threat vector once Phase 8 introduces user-influenced
+  content into the context.
+- **`tests/eval/run-advisor-eval.ts`**: the harness — calls the real service
+  (refuses to run in fixture mode, since that would just replay one canned
+  answer 32 times and prove nothing), applies automated substring and
+  heuristic number-leakage checks, and writes a full transcript for human
+  review. Explicitly documented as a first-pass net, not a certificate — see
+  `tests/eval/README.md`.
+- 27 unit tests total (grounding context 13, adapter 6, service 8) covering
+  everything testable without a live model call: context rendering
+  correctness for every section (present/absent/partial), adapter error
+  classification (missing key, network failure, 429, malformed response),
+  and service-level validation/minimisation/error-mapping.
+- Docs: `CALCULATIONS.md` gains an explicit note that the AI Advisor is the
+  one deliberate exception to "no LLM computes a number" (and its stale
+  Phase-0-era intro was corrected — it still said nothing was implemented),
+  `ARCHITECTURE.md` documents the new `advisor/` folder and the AI adapter,
+  `API.md` documents the route and screen, `PRIVACY.md`'s Phase 7 section
+  updated from "planned" to what's actually sent/stored (nothing persisted
+  yet; the AI receives only the same already-minimised location fields used
+  throughout, never a full postcode), `SECURITY.md`'s prompt-injection entry
+  updated from a forward-looking note to what was actually built and what
+  still needs live verification, `ROADMAP.md`, `.env.example` gains
+  `ANTHROPIC_MODEL`.
+
+### What was NOT run, and why (this phase's caveat is stronger than usual)
+Every prior phase's "no network access, verify yourself" caveat applies here
+too — `npm install`/`npm test`/`npm run typecheck`/`npm run build` haven't
+been run. But this phase has an additional, more consequential gap: **the
+32-case evaluation itself has never been executed against a real model.**
+Unlike a missed `npm test` run (mechanical, low-risk to skip once), skipping
+this evaluation means the actual safety properties this phase exists to
+provide — does the model really refuse the unsafe-instruction cases, does it
+really resist the embedded-injection case, does it really avoid inventing
+numbers when tempted — are UNVERIFIED. The system prompt and grounding
+context were written carefully and reasoned through, but "written carefully"
+and "verified against actual model behaviour" are different claims, and only
+the second one is what `PRODUCT_SPEC.md` asks for.
+
+### Also not yet done (by design, deferred to later phases per ROADMAP.md)
+- No persistence of conversations (Phase 9).
+- No navigation link to `/advisor` from other screens yet (same gap noted
+  for `/energy-now` in Phase 6 — an app-shell/navigation phase should wire
+  these together).
+- `RECOMMENDATIONS` in the grounding context has no real data source until
+  Phase 8 exists — every call today renders that section as "not available
+  yet."
+- The evaluation's automated checks are heuristic (substring matching, a
+  number-leakage scan) — real evaluation requires a human reading all 32
+  transcripts, not just the pass/fail summary.
+- Phases 8–12 (Action Plans, auth, security hardening, investor demo, final
+  QA) are not started.
+
+### Next recommended phase
+Before Phase 8: **run the Phase 7 evaluation** (see above) — this is a
+harder gate than "next phase," it's a completion requirement for the phase
+that's technically already built. After that, Phase 8: Action Plans, which
+will finally give the grounding context's `recommendations` section (and
+GreenScore's `userProgress` component, excluded in every score so far) real
+data to work with instead of "not available yet."

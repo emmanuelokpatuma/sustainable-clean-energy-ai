@@ -339,11 +339,82 @@ request is always a 400.
 
 ---
 
+## `POST /api/advisor/ask`
+**Status: implemented (Phase 7).**
+
+Asks the AI Sustainability Advisor a question, grounded in whatever
+GreenScore/SolarScore/Energy Now/location data the caller supplies. Calls
+the real Anthropic API via `AiAdvisorService` → `AiAdvisorAdapter` — see
+`CALCULATIONS.md`'s note that this is the one place in the system an LLM is
+actually called, and `SECURITY.md`'s prompt-injection mitigation notes.
+**Not yet backed by the mandatory evaluation run** — see
+`tests/eval/README.md` before relying on this in production.
+
+### Request
+Only `question` is required; everything in `groundingContext` is optional
+(each missing piece means the advisor will say that information isn't
+available rather than guessing).
+```json
+{
+  "groundingContext": {
+    "location": { "postcodeOutward": "SW1A", "region": "London", "adminDistrict": "Westminster" },
+    "greenScore": { "...": "a GreenScoreResult, e.g. from POST /api/scores/green" },
+    "solarScore": { "...": "a SolarScoreResult, e.g. from POST /api/scores/solar" },
+    "energyNow": {
+      "current": { "index": "moderate", "actual": 148, "from": "...", "to": "..." },
+      "interpretation": { "...": "the interpretation object from GET /api/energy/current" },
+      "retrievedAt": "2026-09-14T11:05:00.000Z",
+      "isFixture": false
+    }
+  },
+  "conversationHistory": [
+    { "role": "user", "content": "Is solar worth considering?" },
+    { "role": "assistant", "content": "Based on your SolarScore..." }
+  ],
+  "question": "When should I charge my EV today?"
+}
+```
+- `conversationHistory`: capped at 50 entries by this route's own validation,
+  then further capped to the last 12 by `aiAdvisorService.ts` regardless of
+  what's sent — "store/send only the minimum necessary conversation data" is
+  enforced server-side, not left to the caller.
+- `question`: 1–2000 characters.
+
+### Response — success (200)
+```json
+{
+  "ok": true,
+  "answer": "Later this afternoon looks like a better window for that...",
+  "groundingSummary": {
+    "location": true,
+    "greenScore": true,
+    "solarScore": true,
+    "energyNow": true,
+    "recommendations": false
+  }
+}
+```
+`groundingSummary` reports which sections were actually available for this
+answer — for UI transparency (e.g. showing "based on: GreenScore, SolarScore,
+Energy Now" under the answer), not the raw context text itself.
+
+### Response — failure
+| Status | Cause | Example `message` |
+|---|---|---|
+| 400 | Malformed body, missing/invalid `question`, or `groundingContext` didn't match the expected shape | "The request body did not match the expected shape." |
+| 503 | The AI provider is unreachable, rate-limited, or misconfigured | "The AI Advisor is temporarily unavailable. Please try again shortly." |
+
+### Screen
+`src/app/advisor/page.tsx` (Phase 7) — resolves a postcode through the full
+Phase 1/2/3/4/5/6 pipeline client-side, assembles the grounding context from
+the results, and provides the actual chat interface.
+
+---
+
 ## Planned routes (not yet implemented)
 
 | Route | Phase | Purpose |
 |---|---|---|
-| `POST /api/advisor/ask` | 7 | AI Advisor question, grounded in stored structured context |
 | `POST /api/action-plan/generate` | 8 | Generate a prioritised action plan |
 | `POST /api/auth/*` | 9 | Login/session endpoints |
 

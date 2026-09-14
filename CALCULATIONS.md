@@ -1,14 +1,22 @@
 # Calculations
 
-This document is the single source of truth for how GreenScore, SolarScore and
-recommendation priority are computed. **Nothing in this file is implemented
-yet** (that's Phases 4/5/8) — it exists now, in Phase 0, so that when those
-phases are built they implement *this* spec rather than inventing their own
-on the day, and so reviewers can check the eventual code against a spec
-written before the code existed.
+This document is the single source of truth for how GreenScore, SolarScore,
+Energy Now's interpretation, and recommendation priority are computed.
+Phases 4, 5, and 6 have implemented their sections below; Phase 8
+(recommendation priority) has not yet — see each section's own status note.
 
 Whichever phase implements a section of this file must update it if the real
 implementation deviates, and explain why in `PROGRESS.md`.
+
+## The one deliberate exception: the AI Advisor (Phase 7)
+Everything in this file is explicitly NOT how the AI Advisor works.
+`POST /api/advisor/ask` (`API.md`) is the one place in this system that
+calls an LLM — and it never computes a score or figure itself. It explains,
+compares, and prioritises using the already-computed results this file
+describes, fed to it as read-only structured context (see
+`src/server/advisor/groundingContext.ts` and `systemPrompt.ts`). If you're
+looking for where a number in this app comes from, it's always one of the
+deterministic engines below — never the AI Advisor.
 
 ## Ground rules (apply to every calculation below)
 1. Every calculation is deterministic and unit-testable — no LLM call is ever
