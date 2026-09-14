@@ -726,13 +726,13 @@ unrun — this is now the third phase in a row where that's true.**
   items" list as its starting checklist, not rediscover the same gaps.
 
 ### Next recommended phase
-**Still: run the Phase 7 AI Advisor evaluation.** It is not this project's
-job to let a real gap get quietly outlasted by feature velocity — three
-phases of "yes please, keep going" is a realistic pattern for how this kind
-of gap survives in a real project, which is exactly why it's called out
-here again rather than assumed resolved. After that: Phase 10, security and
-UX hardening — this phase's own SECURITY.md additions (rate limiting above
-all) are the concrete starting list, not a generic "do a security review."
+**Still: run the Phase 7 AI Advisor evaluation before anything else** — it has now
+been outstanding across three phases of continued building, and this project's
+own principle ("never claim complete without verification") applies to the
+project's own recommendations to itself just as much as to a GreenScore
+figure. After that: Phase 10, security and UX hardening — this phase's own
+SECURITY.md additions (rate limiting above all) are the concrete starting
+list, not a generic "do a security review."
 
 ## Phase 10 — Testing & production hardening / security review
 
@@ -829,3 +829,92 @@ After that: Phase 11, investor demonstration mode — a fast, reliable,
 clearly-labelled demo path through the full postcode → GreenScore →
 SolarScore → Energy Now → Advisor → Action Plan pipeline built across
 Phases 1–8, per `PRODUCT_SPEC.md`'s 90-second demo script requirement.
+
+## Phase 11 — Investor demonstration mode
+
+**The Phase 7 evaluation gate still stands — five phases outstanding now.
+See that phase's entry. This phase's own script (`DEMO_SCRIPT.md`) explicitly
+tells the presenter what to say if the AI Advisor step is slow or
+unavailable — it does not, and cannot, resolve the underlying gate.**
+
+### What was built
+- **`src/app/demo/page.tsx`** — implements `PRODUCT_SPEC.md`'s Phase 11
+  journey exactly: postcode → location → SolarScore/GreenScore inputs →
+  Energy Now → GreenScore + SolarScore → top 3 recommendations → a fixed AI
+  Advisor question ("What should I do first to reduce my environmental
+  impact while saving money?") → the answer → data sources/assumptions.
+  **Not a separate mocked pipeline** — it calls the exact same `/api/*`
+  routes every other screen uses. The only "demo" behaviour is presentation
+  (a curated default postcode, the fixed investor question instead of free
+  text, progressive reveal for pacing) and radical honesty about data
+  provenance.
+- **`DEMO_SCRIPT.md`** — the required 90-second spoken script, timestamped,
+  plus an explicit "if something goes wrong live" section (what to say if a
+  section errors, if the AI Advisor is slow, if someone asks "is this real
+  data?") and a section stating what the demo deliberately doesn't show
+  (persistence, login) rather than pretending those don't exist.
+- **A real gap found and fixed, not just noted**: `PRODUCT_SPEC.md` requires
+  "never represent demo data as live data" and "add a visible Demo Mode
+  indicator when demo fixtures are being used." Checking whether this
+  project could actually honour that requirement surfaced a genuine bug —
+  `LocationService` and `AiAdvisorService` were silently dropping the
+  `isFixture` flag their own adapters already returned (`SolarService` and
+  `CarbonIntensityService` already passed it through correctly since
+  Phase 2/3). Fixed both, added `isFixture` to `LocationResult` and
+  `AskAdvisorOutput`, and strengthened one existing test in each of
+  `tests/integration/location-service.test.ts` and
+  `tests/unit/ai-advisor-service.test.ts` to assert it propagates rather
+  than just happening to pass. This means EVERY screen, not just `/demo`,
+  can now honestly disclose fixture-derived data — a project-wide fix that
+  a demo-specific requirement happened to surface.
+- The demo screen's "Demo Mode" banner is driven entirely by that fix:
+  it appears the moment any fetched piece (location, solar, energy, or the
+  AI Advisor's answer) reports `isFixture: true`, with text that says
+  plainly what that means rather than a vague icon.
+- Docs: `ARCHITECTURE.md` gains a "Data-provenance transparency" section
+  documenting the fix and an "Investor demo" section, `ROADMAP.md`,
+  `README.md`'s doc index and status line.
+
+### What was NOT run, and why
+Same constraint as always — no network access, so this screen has not
+actually been loaded in a browser, and the demo pipeline has not been
+run end-to-end against either live APIs or fixture mode. The `isFixture`
+propagation fix, by contrast, IS verified — by the two strengthened unit
+tests, which check the actual field value rather than just compiling.
+Before presenting this to anyone:
+```bash
+npm install && npm run build && npm run dev
+# then visit /demo, click "Start Demo", and confirm:
+# - every section populates in a reasonable time
+# - the Demo Mode banner appears/doesn't appear correctly depending on
+#   USE_FIXTURE_DATA
+# - the AI Advisor section actually answers the fixed question sensibly
+#   (this also doubles as an extra, informal check on Phase 7 grounding —
+#   but is NOT a substitute for the real evaluation, which is still unrun)
+```
+**The Phase 7 AI Advisor evaluation remains unrun — fifth phase running now.**
+
+### Also not yet done (by design, deferred to later phases per ROADMAP.md)
+- No visual/UX polish pass on `/demo` beyond what was needed for basic
+  legibility and the required Demo Mode banner — Phase 10 already scoped
+  UX work down to a security-focused review; a genuinely "investor-grade"
+  visual treatment (per the original product brief's separate UX-hardening
+  language) is not done.
+- The demo intentionally doesn't showcase persistence (saved properties,
+  GreenScore history) or login — noted directly in `DEMO_SCRIPT.md` rather
+  than silently absent.
+- No rehearsal/timing verification — the ~90-second script's pacing is
+  estimated from the content, not measured against an actual run (which
+  requires the browser/dev-server access this environment doesn't have).
+- Phase 12 (final QA report) is not started.
+
+### Next recommended phase
+**Still: run the Phase 7 AI Advisor evaluation.** Fifth flag. After that:
+Phase 12, the final QA pass — `PRODUCT_SPEC.md` asks for a
+`FINAL_QA_REPORT.md` testing the complete journey under normal and
+adverse conditions (invalid input, API failure, partial data, mobile/
+desktop, unauthorised access) and an explicit P0/P1/P2 severity list of
+what remains. This phase's own "what was NOT run" sections across all 11
+prior phases are the raw material for that report — Phase 12 should
+compile them, not rediscover them.
+

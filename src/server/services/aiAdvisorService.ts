@@ -26,6 +26,14 @@ export interface AskAdvisorOutput {
     energyNow: boolean;
     recommendations: boolean;
   };
+  /**
+   * True when the answer came from the fixture response (USE_FIXTURE_DATA=true)
+   * rather than a real model call. Added in Phase 11 for the same reason as
+   * LocationService's equivalent field — a demo running in fixture mode
+   * would otherwise show the same canned answer with no indication it
+   * wasn't a live model response.
+   */
+  isFixture: boolean;
 }
 
 export type AskAdvisorResult =
@@ -70,6 +78,7 @@ export class AiAdvisorService {
         ok: true,
         data: {
           answer: result.text,
+          isFixture: result._meta.isFixture,
           groundingSummary: {
             location: !!input.groundingContext.location,
             greenScore: !!input.groundingContext.greenScore,

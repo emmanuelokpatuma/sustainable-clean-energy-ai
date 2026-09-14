@@ -55,6 +55,7 @@ describe("AiAdvisorService.ask — success and grounding summary", () => {
     expect(result.ok).toBe(true);
     if (result.ok) {
       expect(result.data.answer).toBe("Here is your answer.");
+      expect(result.data.isFixture).toBe(true); // Phase 11: must propagate, not be dropped
       expect(result.data.groundingSummary).toEqual({
         location: true,
         greenScore: false,

@@ -36,6 +36,7 @@ describe("LocationService.resolvePostcode (integration)", () => {
     if (result.ok) {
       expect(result.location.postcodeOutward).toBe("SW1A");
       expect(typeof result.location.retrievedAt).toBe("string");
+      expect(result.location.isFixture).toBe(true); // Phase 11: must propagate, not be dropped
     }
   });
 

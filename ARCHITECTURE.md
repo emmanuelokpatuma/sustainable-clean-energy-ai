@@ -130,6 +130,26 @@ once. `SolarScore`, `AiConversation`, and `ActionPlan`/`Recommendation`
 persistence are NOT wired — see `PROGRESS.md`'s Phase 9 entry for the exact
 boundary.
 
+## Data-provenance transparency (`isFixture`)
+Every adapter has always returned `_meta.isFixture` (whether a result came
+from a recorded fixture or a live call) — but two services silently dropped
+it before Phase 11: `LocationService` and `AiAdvisorService`. Fixed this
+phase, once `/demo`'s "never present demo data as live" requirement made the
+gap concrete rather than theoretical. All four data-producing
+services/routes (`LocationService`, `SolarService`, `CarbonIntensityService`,
+`AiAdvisorService`) now consistently surface this field to their API
+responses, so any screen — not just `/demo` — can show an honest indicator.
+
+## Investor demo (Phase 11)
+`src/app/demo/page.tsx` — calls the exact same routes as every other
+screen, in the sequence `PRODUCT_SPEC.md`'s Phase 11 section specifies
+(postcode → location → SolarScore/GreenScore inputs → Energy Now →
+GreenScore + SolarScore → top 3 recommendations → a fixed AI Advisor
+question → data sources/assumptions). Not a separate mocked pipeline — the
+only "demo" behaviour is presentation (a curated default postcode, a fixed
+investor-pitch question, progressive reveal) and the honesty banner powered
+by the `isFixture` fix above. See `DEMO_SCRIPT.md` for the spoken script.
+
 ## Privacy-by-design
 - Store only the minimum needed: an outward postcode / resolved lat-lon rounded to
   a privacy-safe precision, not a full address, unless a feature genuinely requires it.

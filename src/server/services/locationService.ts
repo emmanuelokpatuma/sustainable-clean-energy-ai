@@ -11,6 +11,15 @@ export interface LocationResult {
   postcodeOutward: string;
   source: string;
   retrievedAt: string; // ISO string, safe to serialize to the client
+  /**
+   * True when this came from a recorded fixture rather than a live
+   * Postcodes.io call (USE_FIXTURE_DATA=true). Added in Phase 11 — this was
+   * a real gap before then: SolarService and CarbonIntensityService already
+   * exposed this, but LocationService silently dropped it, meaning a demo
+   * running in fixture mode would show fixture-derived coordinates with no
+   * indication they weren't live. See PROGRESS.md's Phase 11 entry.
+   */
+  isFixture: boolean;
 }
 
 export type LocationServiceResult =
@@ -54,6 +63,7 @@ export class LocationService {
           postcodeOutward: result.postcodeOutward,
           source: result._meta.source,
           retrievedAt: result._meta.retrievedAt.toISOString(),
+          isFixture: result._meta.isFixture,
         },
       };
     } catch (err) {

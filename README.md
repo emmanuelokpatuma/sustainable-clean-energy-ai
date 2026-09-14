@@ -5,17 +5,16 @@ and an AI Sustainability Advisor. See `PRODUCT_SPEC.md` for the product spec and
 `ARCHITECTURE.md` for the technical design.
 
 ## Status
-This is a **Phase 0–10** build: project setup, docs, testing foundation,
+This is a **Phase 0–11** build: project setup, docs, testing foundation,
 database schema, the postcode/location service, GB electricity carbon-intensity
 integration (NESO), PVGIS solar integration, the deterministic GreenScore
 engine, the deterministic SolarScore engine, the Energy Now screen, the AI
 Sustainability Advisor, the deterministic Action Plan engine,
-authentication/privacy, and a scoped security-hardening pass (rate limiting,
-a full route-by-route security review, CI dependency scanning) are
-implemented. **The AI Advisor's mandatory evaluation run has NOT been
-performed** (see `tests/eval/README.md`) — read that before relying on it.
-Everything else in `ROADMAP.md` is not yet built. See `PROGRESS.md` for the
-authoritative current state.
+authentication/privacy, a scoped security-hardening pass, and an investor
+demo mode (`/demo` + `DEMO_SCRIPT.md`) are implemented. **The AI Advisor's
+mandatory evaluation run has NOT been performed** (see `tests/eval/README.md`)
+— read that before relying on it. Everything else in `ROADMAP.md` is not yet
+built. See `PROGRESS.md` for the authoritative current state.
 
 > This scaffold was generated without network access (no `npm install` or
 > `npm test` could be run in the build environment). Run the verification steps
@@ -54,3 +53,4 @@ integration tests are marked to optionally run against live endpoints — see
 - `ROADMAP.md` — phase-by-phase plan
 - `PROGRESS.md` — actual current state, updated every phase
 - `TESTING.md` — test strategy and fixture policy
+- `DEMO_SCRIPT.md` — the 90-second investor demo walkthrough for `/demo` (Phase 11)
