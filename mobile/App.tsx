@@ -281,6 +281,8 @@ export default function App() {
     </View>
   );
 
+  const solarBars = [42, 58, 65, 72, 80, 86, 75, 68, 62, 52, 45, 38];
+
   const renderOverview = () => (
     <>
       <View style={styles.heroCard}>
@@ -311,6 +313,17 @@ export default function App() {
         ))}
       </View>
 
+      <View style={styles.scorePanel}>
+        <View style={styles.scoreRing}>
+          <Text style={styles.scoreRingText}>{analysis.green ? analysis.green.totalScore : '—'}</Text>
+        </View>
+        <View style={styles.scoreInfo}>
+          <Text style={styles.sectionTitle}>Sustainability health</Text>
+          <Text style={styles.bodyText}>Your home is performing well with strong solar potential and a manageable grid profile.</Text>
+          <Text style={styles.metaText}>Estimated improvement path: +8 points within the next 12 months</Text>
+        </View>
+      </View>
+
       <View style={styles.quickActionRow}>
         {quickActions.map((action) => (
           <View key={action.label} style={[styles.quickAction, { borderColor: action.tone }]}>
@@ -318,6 +331,18 @@ export default function App() {
             <Text style={[styles.quickActionValue, { color: action.tone }]}>{action.value}</Text>
           </View>
         ))}
+      </View>
+
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Solar generation</Text>
+        <View style={styles.barChart}>
+          {solarBars.map((height, index) => (
+            <View key={index} style={styles.barWrap}>
+              <View style={[styles.bar, { height: `${height}%` }]} />
+              <Text style={styles.barLabel}>{['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'][index]}</Text>
+            </View>
+          ))}
+        </View>
       </View>
 
       {analysis.location ? (
@@ -659,6 +684,35 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginTop: 8,
   },
+  scorePanel: {
+    backgroundColor: '#0f172a',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    padding: 18,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  scoreRing: {
+    width: 98,
+    height: 98,
+    borderRadius: 49,
+    backgroundColor: '#08141d',
+    borderWidth: 10,
+    borderColor: '#22c55e',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scoreRingText: {
+    color: '#f8fafc',
+    fontSize: 24,
+    fontWeight: '800',
+  },
+  scoreInfo: {
+    flex: 1,
+  },
   quickActionRow: {
     flexDirection: 'row',
     gap: 10,
@@ -779,5 +833,29 @@ const styles = StyleSheet.create({
   },
   tabLabelActive: {
     color: '#f8fafc',
+  },
+  barChart: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    height: 110,
+    marginTop: 8,
+  },
+  barWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    height: '100%',
+  },
+  bar: {
+    width: 12,
+    borderRadius: 8,
+    backgroundColor: '#22c55e',
+    minHeight: 18,
+  },
+  barLabel: {
+    color: '#a8b3c7',
+    fontSize: 10,
+    marginTop: 8,
   },
 });
