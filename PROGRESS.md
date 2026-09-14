@@ -608,3 +608,128 @@ figure. After that: Phase 9 (authentication/privacy), which is what finally
 unlocks real persistence — for stored conversations (Phase 7), completed
 action tracking that feeds GreenScore's userProgress component (Phase 8),
 and every other "no persistence yet" note across Phases 1–8.
+
+## Phase 9 — Authentication / privacy layer
+
+**The Phase 7 evaluation gate still stands — three phases outstanding now.
+It was not run before proceeding to this phase either, for the same reason
+as before (this phase doesn't require a live model call, and continuing was
+requested). Do not let this keep getting further buried — see that phase's
+entry above before the AI Advisor faces a real user.**
+
+### What was built
+- **Password hashing** (`src/server/lib/password.ts`): scrypt via Node's
+  built-in `crypto`, salted per-user, deliberately not a dedicated
+  bcrypt/argon2 dependency for V1 (documented rationale in the file itself).
+- **Sessions** (`src/server/lib/session.ts`): a signed (HMAC-SHA256),
+  30-day-expiring token in an `httpOnly`/`sameSite: lax` cookie — not a
+  full JWT library, ~90 lines doing exactly what this app needs.
+  `SESSION_SECRET` is required and validated (≥32 chars) at first use in
+  production (throws loudly rather than signing with a weak/absent secret);
+  falls back to a per-process random secret with a logged warning in
+  development.
+- **`AuthService`** (`src/server/services/authService.ts`): signup and
+  login, constructor-injectable DB client for testability (same pattern as
+  `AiAdvisorService`'s injectable adapter). Login returns the byte-for-byte
+  identical message ("Invalid email or password.") whether the email
+  doesn't exist or the password is wrong — verified by a dedicated test,
+  not just asserted in a comment.
+- **Five auth routes**: `POST /api/auth/signup`, `POST /api/auth/login`,
+  `POST /api/auth/logout`, `GET /api/auth/me`, `DELETE /api/auth/account`
+  (requires re-entering the current password; cascades to every `Property`,
+  `GreenScore`, and `AiConversation` via new `onDelete: Cascade` relations
+  added to `prisma/schema.prisma`).
+- **One real, complete persistence slice** — deliberately not an attempt to
+  wire all of Phases 1–8's outputs into the database at once:
+  - `POST /api/properties` / `GET /api/properties` — the first routes in
+    this entire project that write to the database. Creates/lists a
+    `Property` (+ its `Location`) owned by the logged-in user.
+  - `POST /api/scores/green` gained an optional `propertyId` — when
+    supplied, the route (unchanged for every other caller) saves the
+    computed result to the `GreenScore` table after an ownership check.
+  - `GET /api/properties/:id/green-scores` — the saved-history endpoint,
+    realising the "GET /api/scores/solar/:propertyId"-shaped idea `API.md`
+    speculatively planned back in Phase 0 before persistence existed, for
+    GreenScore rather than SolarScore.
+  - **Fixed during review**: the two ownership-check routes initially
+    returned different status codes for "property exists but isn't yours"
+    (403 on one, 404 on the other) — made consistent on 404 (the more
+    security-conscious choice: don't confirm a given ID exists to a
+    non-owner) and updated `API.md` to match.
+- **`src/app/settings/page.tsx`** — the ninth and final core V1 screen from
+  `PRODUCT_SPEC.md` ("Settings/Data & Privacy"), previously the one
+  explicitly-named screen with no page at all. Handles login/signup,
+  displays account email and saved properties, explains what's stored and
+  why in plain language, and provides the account-deletion flow.
+- **Schema changes**: `User.passwordHash`, `onDelete: Cascade` on the
+  User→Property, User→AiConversation, and every Property→(child table)
+  relations, `GreenScore.formulaVersion` (to match `calculateGreenScore`'s
+  real output shape, which the Phase 0 schema predated). **No migration has
+  been generated or run** — `npx prisma migrate dev` needs to be run once
+  a real Postgres instance is available; see "What was NOT run" below.
+- 19 new unit tests: 5 for password hashing (round-trip, wrong password,
+  no-plaintext-leak, distinct salts, fails-closed on malformed input), 6 for
+  session tokens (round-trip, tampered payload, tampered signature, expired,
+  malformed variants, distinct tokens per user), 8 for `AuthService`
+  (signup success/short-password/duplicate-email/hash-not-plaintext,
+  login success/wrong-password/nonexistent-email — with an explicit
+  byte-for-byte equality check between the last two's error messages —
+  and email-case normalisation).
+- Docs: `PRIVACY.md`'s account-data section rewritten from "planned" to
+  actual (what's collected, the erasure path, what's still NOT persisted),
+  `SECURITY.md` gains a substantial Authentication section AND an honest
+  "open items" list specific to auth (most importantly: **no rate limiting
+  on login/signup — the single biggest concrete risk this phase
+  introduces**, no email verification, no password reset flow),
+  `ARCHITECTURE.md` documents the new `lib/` auth files and the persistence
+  boundary, `API.md` documents all seven new/changed routes, `ROADMAP.md`.
+
+### What was NOT run, and why
+The usual environment constraint (no network access) applies with extra
+weight this phase: **there is no Postgres instance in this environment, so
+none of the new database-touching code — signup, login, property creation,
+GreenScore saving, account deletion's cascade — has been executed against a
+real database.** Every route was reviewed by hand for correctness against
+the schema, and `AuthService` itself is unit-tested with a mocked DB client,
+but the actual Prisma queries (`create`, `findUnique` with the real
+generated client, cascading `delete`) are unverified. Before trusting this:
+```bash
+npm install
+npx prisma migrate dev --name phase_9_auth   # generates + runs the new migration
+npm run typecheck && npm test && npm run build
+npm run dev   # then actually sign up, save a property, save a GreenScore, delete the account
+```
+The account-deletion cascade specifically deserves a manual check — create a
+user, give them a property with a saved GreenScore, delete the account, and
+confirm both the property and the GreenScore row are actually gone, not just
+the user row.
+
+**The Phase 7 AI Advisor evaluation remains separately, and still,
+unrun — this is now the third phase in a row where that's true.**
+
+### Also not yet done (by design, deferred to later phases per ROADMAP.md)
+- **Not wired to persistence despite this phase's work**: SolarScore
+  results, AI conversations (Phase 7), and Action Plans/Recommendations
+  (Phase 8) — all have Prisma models, none have a route that writes to
+  them. This was a deliberate scope decision (one complete real slice
+  rather than eight half-wired ones), not an oversight, but it means
+  GreenScore's `userProgress` component is STILL always excluded — there's
+  now a way to save a GreenScore, but still no way to mark a recommendation
+  "done" and feed that back in.
+- No rate limiting, no email verification, no password reset — see
+  `SECURITY.md`'s Phase 9 section for the full list, with rate limiting on
+  auth routes flagged as the most urgent.
+- No migration has been generated (see above) — this environment cannot
+  run `prisma migrate dev`.
+- Phases 10–12 (security hardening, investor demo, final QA) are not
+  started. Phase 10 in particular should treat this phase's own "open
+  items" list as its starting checklist, not rediscover the same gaps.
+
+### Next recommended phase
+**Still: run the Phase 7 AI Advisor evaluation.** It is not this project's
+job to let a real gap get quietly outlasted by feature velocity — three
+phases of "yes please, keep going" is a realistic pattern for how this kind
+of gap survives in a real project, which is exactly why it's called out
+here again rather than assumed resolved. After that: Phase 10, security and
+UX hardening — this phase's own SECURITY.md additions (rate limiting above
+all) are the concrete starting list, not a generic "do a security review."

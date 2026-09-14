@@ -469,12 +469,118 @@ never assume it means "everything is fine."
 
 ---
 
+## Authentication routes (Phase 9)
+
+All session state lives in an `httpOnly`, `sameSite: lax` cookie named
+`session` (see `src/server/lib/session.ts`) — never in a response body or
+localStorage. None of these routes require a body field beyond what's shown.
+
+### `POST /api/auth/signup`
+**Status: implemented.**
+
+Request: `{ "email": "you@example.com", "password": "at least 10 chars" }`.
+Only email + password are collected — see `PRIVACY.md`.
+
+Success (200): `{ "ok": true, "user": { "id": "...", "email": "..." } }`,
+sets the session cookie.
+
+Failure:
+| Status | Cause |
+|---|---|
+| 400 | Malformed email, or password shorter than 10 characters |
+| 409 | An account with that email already exists |
+
+### `POST /api/auth/login`
+**Status: implemented.**
+
+Request: `{ "email": "...", "password": "..." }`.
+
+Success (200): same shape as signup, sets the session cookie.
+
+Failure: **401** with the message `"Invalid email or password."` for both a
+non-existent email and a wrong password — deliberately identical wording;
+see `SECURITY.md`'s enumeration-resistance note. A malformed request body
+(e.g. not a valid email shape) returns **400** with the same generic
+message, for the same reason.
+
+### `POST /api/auth/logout`
+**Status: implemented.** No body. Clears the session cookie. Always
+returns `{ "ok": true }`, whether or not a session existed.
+
+### `GET /api/auth/me`
+**Status: implemented.** No auth required to call it — that's the point.
+Returns `{ "ok": true, "user": { "id", "email" } }` if the session cookie is
+valid and the account still exists, or `{ "ok": true, "user": null }`
+otherwise. Never a 401 — "am I logged in" is a normal query, not an error.
+
+### `DELETE /api/auth/account`
+**Status: implemented.** Requires an active session AND the current
+password in the body (`{ "password": "..." }`) as a confirmation step for
+an irreversible action. Cascades to every `Property`, `GreenScore`, and
+`AiConversation` linked to the account (`prisma/schema.prisma`'s
+`onDelete: Cascade`). Clears the session cookie on success.
+
+| Status | Cause |
+|---|---|
+| 401 | Not logged in, or the provided password was incorrect |
+| 400 | Missing/malformed password field |
+
+---
+
+## `POST /api/properties`
+**Status: implemented (Phase 9).** Requires an active session.
+
+The first route in this project that writes to the database. Resolves a
+postcode (via the same `LocationService` as `/api/location/resolve`) and
+creates a `Property` + `Location` row owned by the current user.
+
+Request: `{ "postcode": "SW1A 1AA", "label": "Home" }` (`label` optional,
+max 60 chars — a user-given nickname, never a full address).
+
+Success (200): `{ "ok": true, "property": { "id", "userId", "label",
+"location": { "postcodeOutward", "latitude", "longitude", ... }, "createdAt" } }`.
+
+Failure: 401 (not logged in), 400 (invalid postcode), 404 (postcode not
+found), 503 (Postcodes.io unavailable) — same postcode-resolution failure
+modes as `/api/location/resolve`.
+
+## `GET /api/properties`
+**Status: implemented (Phase 9).** Requires an active session. Returns
+`{ "ok": true, "properties": [...] }` for the current user only, newest
+first.
+
+## `GET /api/properties/:id/green-scores`
+**Status: implemented (Phase 9).** Requires an active session and
+ownership of the property (404, not 403, if the property exists but belongs
+to someone else — avoids confirming a given ID exists to a caller who
+doesn't own it). Returns every `GreenScore` saved against that property,
+newest first: `{ "ok": true, "greenScores": [...] }`.
+
+## `POST /api/scores/green` — Phase 9 addition
+**This route already existed (Phase 4) — Phase 9 added an optional
+`propertyId` field, nothing else changed.** When `propertyId` is supplied:
+requires an active session (401 if not logged in), and checks the property
+belongs to the caller — **404**, not 403, if it exists but belongs to
+someone else (matches `/api/properties/:id/green-scores`'s same choice: a
+non-owner shouldn't learn that a given property ID exists at all). On
+success, saves the computed result to the `GreenScore` table in addition to
+returning it, and the response gains a `saved: boolean` field. Every
+existing caller that doesn't pass `propertyId` sees no behaviour change at
+all — this route is still fully usable stateless, exactly as in Phases 4–8.
+
+---
+
+## Not yet wired to persistence, despite having a database table
+`SolarAssessment`/SolarScore results, `AiConversation` (Phase 7 chat
+history), and `ActionPlan`/`Recommendation` (Phase 8 output) all have Prisma
+models but no route writes to them yet. Phase 9 deliberately scoped its
+persistence work to one complete, real slice (account → property → GreenScore
+history) rather than wiring all of Phases 1–8's outputs into the database in
+one pass — see `PROGRESS.md`'s Phase 9 entry for the reasoning and what a
+follow-up wiring pass would need to cover.
+
 ## Planned routes (not yet implemented)
 
-| Route | Phase | Purpose |
-|---|---|---|
-| `POST /api/auth/*` | 9 | Login/session endpoints |
-
-Each will be documented here, with the same request/response/error-status
-shape as above, at the point its phase is implemented — not before, so this
-file never describes a route that doesn't exist yet as if it did.
+No routes remain in this table — Phase 9 was the last route-adding phase in
+`ROADMAP.md`. Phases 10–12 (security hardening, investor demo, final QA) are
+reviews and polish passes over what already exists, not new endpoints.

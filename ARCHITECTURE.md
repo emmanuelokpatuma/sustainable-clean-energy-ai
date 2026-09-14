@@ -42,7 +42,9 @@ src/server/advisor/           → Phase 7's AI Advisor-specific pure logic:
                                  specific to the AI Advisor feature rather
                                  than general-purpose scoring engines.
 src/server/db/                → Prisma client singleton + repository-style helpers.
-src/server/lib/                → Cross-cutting: env validation, logging, errors.
+src/server/lib/                → Cross-cutting: env validation, logging, errors,
+                                 password hashing, session tokens, and
+                                 `getCurrentUser()` (Phase 9).
 src/server/validation/         → Shared Zod schemas for validating an
                                  already-computed result (GreenScoreResult,
                                  SolarScoreResult, etc.) when it's passed back
@@ -108,11 +110,25 @@ rating — turning a physical quantity into a categorical rating is SolarScore's
 job (Phase 5), using thresholds fixed in `CALCULATIONS.md`, not something this
 adapter should decide on its own.
 
-## Database tables (Phase 0 schema, not all populated until later phases)
+## Database tables (Phase 0 schema; `users`, `properties`, `locations`, and
+`green_scores` are now actually populated as of Phase 9 — see below. The
+rest remain schema-only, not yet written to.)
 `users, properties, locations, energy_profiles, solar_assessments,
 carbon_intensity_records, green_scores, recommendations, action_plans,
 ai_conversations, data_sources, source_refresh_logs`
 See `prisma/schema.prisma` for field-level detail.
+
+## Persistence (Phase 9 — one real slice, not everything)
+The first routes in this project that actually write to the database:
+`POST /api/properties` (creates a `Property` + `Location` for the logged-in
+user) and `POST /api/scores/green`'s optional `propertyId` (saves the
+computed result to `GreenScore`, ownership-checked). Every prior phase's
+routes remain stateless — chosen deliberately as one complete, real slice
+(auth → save a property → save/retrieve its GreenScore history) rather than
+attempting to wire all eight prior phases' outputs into the database at
+once. `SolarScore`, `AiConversation`, and `ActionPlan`/`Recommendation`
+persistence are NOT wired — see `PROGRESS.md`'s Phase 9 entry for the exact
+boundary.
 
 ## Privacy-by-design
 - Store only the minimum needed: an outward postcode / resolved lat-lon rounded to
@@ -120,7 +136,10 @@ See `prisma/schema.prisma` for field-level detail.
 - No personal data is sent to the AI provider beyond what's needed to answer the
   user's question — the AI receives structured *results* (scores, assessments),
   not raw personal identifiers.
-- See PRIVACY.md and SECURITY.md (created in Phase 9 / hardening phases).
+- See `PRIVACY.md` and `SECURITY.md` — both existed since Phase 0's review
+  pass as forward-looking documents, and were substantially rewritten in
+  Phase 9 now that real accounts, sessions, and persistence exist to
+  describe accurately rather than speculatively.
 
 ## What's deliberately NOT built yet
 Business Mode and the CleanTech marketplace have no routes, tables, or adapters

@@ -7,7 +7,7 @@ is scheduled as Phase 10 in `ROADMAP.md`; this file is not a substitute for
 that review, and no claim of "production-ready" should be made until Phase 10
 and a human/legal review have both happened.
 
-## Current state (Phase 0 / 1)
+## Current state (through Phase 9)
 
 ### Secrets
 - `ANTHROPIC_API_KEY` and any future adapter keys are read only in
@@ -32,13 +32,63 @@ and a human/legal review have both happened.
   coordinates are intended for storage (see `PRIVACY.md` and the `Location`
   model in `prisma/schema.prisma`) — not a full address.
 
+### Authentication (Phase 9 — implemented)
+- **Password storage**: scrypt (Node's built-in `crypto`), salted per-user,
+  never plain text — see `src/server/lib/password.ts` for the rationale for
+  not adding a dedicated bcrypt/argon2 dependency for V1.
+- **Sessions**: a signed (HMAC-SHA256), expiring (30-day) token in an
+  `httpOnly`, `sameSite: lax`, `secure`-in-production cookie — see
+  `src/server/lib/session.ts`. Not a full JWT library, deliberately (see
+  that file's own comment) — this is a contained, auditable ~90 lines, not
+  a general-purpose token system.
+- **`SESSION_SECRET`**: required and validated (≥32 chars) at first use in
+  production — the app throws rather than silently signing with a weak or
+  absent secret. In development, falls back to a per-process random secret
+  with a logged warning, so local work doesn't require setting one, but
+  sessions won't survive a restart until one is set.
+- **Login enumeration resistance**: `AuthService.logIn` returns the
+  identical message ("Invalid email or password.") whether the email
+  doesn't exist or the password is wrong — verified by a dedicated test
+  (`tests/unit/auth-service.test.ts`) that checks both messages are
+  byte-for-byte the same string, not just similar.
+- **Account deletion**: `DELETE /api/auth/account` requires re-entering the
+  current password (a deliberate extra confirmation for an irreversible,
+  cascading delete) and actually removes the row via `prisma.user.delete`,
+  which cascades to every `Property`, `GreenScore`, and `AiConversation`
+  linked to it via `onDelete: Cascade` in `prisma/schema.prisma`.
+- **Ownership checks**: every route touching a `Property` (saving a
+  GreenScore to it, reading its history) checks `property.userId ===
+  currentUser.id` before proceeding — see `/api/scores/green` and
+  `/api/properties/[id]/green-scores`.
+
+### Not yet implemented / open items — authentication-specific
+These are real gaps a production launch needs to close, not just a "later"
+gesture:
+- **No rate limiting on login or signup.** This is the single biggest
+  concrete risk introduced by this phase: without it, `/api/auth/login` is
+  brute-forceable and `/api/auth/signup` can be used to enumerate or spam
+  account creation. This should be fixed before Phase 9's auth is exposed
+  to real traffic, not deferred to the general Phase 10 rate-limiting item
+  below.
+- **No email verification.** An account can be created with any email
+  address, including one the person doesn't own.
+- **No password-reset flow.** A user who forgets their password currently
+  has no self-service recovery path.
+- **No CSRF protection beyond `sameSite: lax`.** Adequate for this app's
+  current same-origin fetch-based routes, but should be revisited if a
+  cross-origin client (e.g. a future mobile app) is added.
+- **No audit log of authentication events** beyond the structured `logger`
+  calls on signup/account-deletion — no login-attempt history, no
+  session-revocation-on-password-change (changing a password doesn't
+  invalidate other active sessions, since sessions aren't tracked
+  server-side at all — they're a stateless signed token, so there is
+  nothing to revoke without adding a server-side session store).
+
 ### Not yet implemented / open items for later phases
-- **Authentication & authorisation** (Phase 9): no login system exists yet.
-  There is no session handling, no password storage, and no per-user access
-  control to review yet — this is the single biggest open item.
-- **Rate limiting**: no rate limiting exists yet on `/api/location/resolve`
-  or any future route. Needed before public launch to protect both this
-  service and upstream free APIs from abuse.
+- **Rate limiting**: no rate limiting exists yet on any route (see the
+  auth-specific callout above for why this matters most urgently there).
+  Needed before public launch to protect this service, upstream free APIs,
+  and the AI provider (which bills per token) from abuse.
 - **CORS**: not yet configured; Next.js defaults apply. Needs explicit
   configuration once the API is consumed from any origin other than the
   bundled frontend.
@@ -67,9 +117,13 @@ and a human/legal review have both happened.
   "not configured correctly" message rather than leaking the underlying "no
   API key" detail to the client — see `aiAdvisorService.ts`'s error mapping
   and its own test for this.
-- **Database access control**: no row-level security or per-tenant isolation
-  has been designed yet, since there is only a single-tenant Prisma client
-  today. Needed before multi-user production use.
+- **Database access control**: no database-level row-level security exists
+  — ownership isolation is enforced entirely in application code (the
+  `property.userId === currentUser.id` checks noted above), not by Postgres
+  itself. That's adequate for a single application server talking to its
+  own database, but means a bug in a future route's ownership check has no
+  second line of defence. Worth revisiting (e.g. Postgres RLS policies) if
+  this database is ever queried by anything other than this application.
 
 ## Principle for future work
 Every phase that touches secrets, external calls, or user data must update

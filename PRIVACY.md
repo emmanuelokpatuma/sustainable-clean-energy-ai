@@ -22,11 +22,27 @@ SolarScore, Energy Now, AI Advisor). When in doubt, don't store it.
   `src/server/lib/postcode.ts`.
 - **Not collected**: full address, house number, inward postcode digits.
 
-### Account data (Phase 9 — not yet implemented)
-- Planned: email address only, for login. No password will be stored in
-  plaintext (a hashing scheme will be specified when Phase 9 is implemented).
-  This section will be expanded when that phase lands — it is listed here now
-  so the schema's `User.email` field has a stated justification.
+### Account data (Phase 9 — implemented)
+- **What**: an email address and a password hash (scrypt-derived, salted —
+  see `src/server/lib/password.ts`). Nothing else — no name, no address, no
+  phone number.
+- **Why**: enough to identify an account and let someone return to see their
+  saved properties and GreenScore history.
+- **What is never stored**: the plain-text password itself, at any point —
+  it exists in memory only for the duration of the hash/verify call.
+- **Saved properties**: when signed in, a property (an optional user-given
+  label, e.g. "Home" — explicitly never a full address, enforced only by
+  convention/UI copy today, not by validation — plus the same
+  already-minimised Location fields described above) can be saved against
+  the account, and GreenScore results computed for it can be saved as
+  history. Nothing else from Phases 1–8 is persisted yet — no SolarScore,
+  no AI conversations, no action plan completion state. See
+  `PROGRESS.md`'s Phase 9 entry for exactly what's wired and what isn't.
+- **Right to erasure**: `DELETE /api/auth/account` (re-confirmed with the
+  account's own password) permanently deletes the user and cascades to
+  every property, GreenScore, and AI conversation linked to it — see
+  `prisma/schema.prisma`'s `onDelete: Cascade` chain. This is available
+  from the Settings screen (`src/app/settings/page.tsx`).
 
 ### AI Advisor conversations (Phase 7 — implemented, no persistence yet)
 - **Current reality**: nothing is written to a database yet — persistence
@@ -65,15 +81,23 @@ SolarScore, Energy Now, AI Advisor). When in doubt, don't store it.
   place — see Location above).
 
 ## Consent & messaging
-The "Settings / Data & Privacy" screen (`PRODUCT_SPEC.md`, screen 9) is
-V1 scope but not yet built. It must, when implemented, explain in plain
-language why a postcode is requested before the user enters one — the current
-Phase 1 screen (`src/app/page.tsx`) has only a one-line explanation ("We'll
-use this to look up solar and electricity data for your area") and should be
-expanded to link to this document once Settings exists.
+The "Settings / Data & Privacy" screen (`PRODUCT_SPEC.md`, screen 9) is now
+built (`src/app/settings/page.tsx`) — it explains what's stored and why
+(email/password hash, saved properties' minimised location data, GreenScore
+history) directly on the page, and provides the account-deletion path
+described above. The Phase 1 postcode screen (`src/app/page.tsx`) still only
+has its original one-line explanation ("We'll use this to look up solar and
+electricity data for your area") — linking it to the Settings screen's fuller
+explanation is a reasonable small follow-up, not done in this phase.
 
 ## Open items
 - No formal legal/DPO review has happened. This document describes technical
   intent, not a compliance sign-off — see `SECURITY.md`'s note on the same
   point. A human/legal review is required before handling real user data at
   any scale, and should be tracked explicitly rather than assumed done.
+- No email verification exists — an account can be created with any email
+  address, including one the signer-upper doesn't own. Not a data
+  minimisation problem, but worth fixing before real launch (see
+  `SECURITY.md`).
+- No data export ("right to access/portability") path exists yet, only
+  deletion. A UK/EU-facing product should offer both.

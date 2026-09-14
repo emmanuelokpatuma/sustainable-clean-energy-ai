@@ -11,7 +11,7 @@
 | 6 | Energy Now (UI + interpretation) | ✅ Done (this delivery) |
 | 7 | AI Sustainability Advisor | ⚠️ Code complete — mandatory evaluation NOT run (this delivery) |
 | 8 | Action Plans | ✅ Done (this delivery) |
-| 9 | Authentication / privacy layer | ⬜ Not started |
+| 9 | Authentication / privacy layer | ✅ Done (this delivery) |
 | 10 | Testing & production hardening / security review | ⬜ Not started |
 | 11 | Investor demonstration mode | ⬜ Not started |
 | 12 | Final QA report | ⬜ Not started |

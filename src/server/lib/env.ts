@@ -20,6 +20,10 @@ const envSchema = z.object({
   // Anthropic's current mainline model as of when this default was written;
   // check Anthropic's docs for what's current before deploying.
   ANTHROPIC_MODEL: z.string().default("claude-sonnet-5"),
+  // Session-signing secret — see src/server/lib/session.ts for why this
+  // isn't validated strictly here: production enforcement (required,
+  // >=32 chars) happens at first use so dev/test can omit it entirely.
+  SESSION_SECRET: z.string().optional(),
   USE_FIXTURE_DATA: z
     .string()
     .optional()

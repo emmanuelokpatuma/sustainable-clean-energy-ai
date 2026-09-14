@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { calculateGreenScore } from "@/server/calculations/greenScore";
+import { getCurrentUser } from "@/server/lib/auth";
+import { prisma } from "@/server/db/client";
 
 /**
  * No service-layer wrapper here, unlike Location/CarbonIntensity/Solar.
@@ -10,6 +12,12 @@ import { calculateGreenScore } from "@/server/calculations/greenScore";
  * already reports as a typed outcome. A pass-through service class would add
  * a layer with nothing to do (see PRODUCT_SPEC.md: "do not over-engineer
  * features that are not required").
+ *
+ * Phase 9 addition: an optional `propertyId`. When supplied AND the caller
+ * is authenticated AND owns that property, the computed result is also
+ * persisted to the GreenScore table — this route's core behaviour
+ * (computing a score from whatever data is provided) is completely
+ * unchanged for every caller that doesn't pass one.
  */
 
 const energyProfileSchema = z
@@ -46,6 +54,7 @@ const bodySchema = z.object({
   solarAssessment: solarAssessmentSchema,
   carbonIntensity: carbonIntensitySchema,
   actionProgress: actionProgressSchema,
+  propertyId: z.string().nullable().optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -73,5 +82,42 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: false, message: outcome.message }, { status: 422 });
   }
 
-  return NextResponse.json({ ok: true, greenScore: outcome.result });
+  let saved = false;
+  if (parsed.data.propertyId) {
+    const user = await getCurrentUser(req);
+    if (!user) {
+      return NextResponse.json(
+        { ok: false, message: "You must be logged in to save a GreenScore to a property." },
+        { status: 401 }
+      );
+    }
+    const property = await prisma.property.findUnique({ where: { id: parsed.data.propertyId } });
+    if (!property || property.userId !== user.id) {
+      // 404, not 403 — matches /api/properties/[id]/green-scores's same
+      // choice: don't confirm to a non-owner that a given property ID
+      // exists at all.
+      return NextResponse.json(
+        { ok: false, message: "That property was not found for your account." },
+        { status: 404 }
+      );
+    }
+
+    const result = outcome.result;
+    await prisma.greenScore.create({
+      data: {
+        propertyId: property.id,
+        totalScore: result.totalScore,
+        formulaVersion: result.formulaVersion,
+        componentScoresJson: result.componentScores,
+        strengthsJson: result.strengths,
+        opportunitiesJson: result.opportunities,
+        assumptionsJson: result.assumptions,
+        dataSourcesJson: result.dataSources,
+        calculatedAt: new Date(result.calculatedAt),
+      },
+    });
+    saved = true;
+  }
+
+  return NextResponse.json({ ok: true, greenScore: outcome.result, saved });
 }
