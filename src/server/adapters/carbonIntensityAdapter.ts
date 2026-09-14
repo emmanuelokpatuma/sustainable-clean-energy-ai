@@ -84,6 +84,22 @@ function toPeriod(raw: z.infer<typeof IntensityPeriodSchema>): CarbonIntensityPe
   };
 }
 
+/**
+ * Formats a Date (or an already-formatted NESO timestamp string) into the
+ * exact `YYYY-MM-DDTHH:MMZ` shape used throughout the NESO Carbon Intensity
+ * API docs — no seconds, no milliseconds. `Date#toISOString()` on its own
+ * produces `...:00.000Z`, which the live API may or may not accept leniently;
+ * this avoids relying on that leniency. See PROGRESS.md — unverified against
+ * the live API, flagged for confirmation once network access is available.
+ */
+function toNesoTimestamp(input: Date | string): string {
+  const iso = typeof input === "string" ? input : input.toISOString();
+  // "...T11:30:00.000Z" -> "...T11:30Z". A string already in NESO's own
+  // minute-precision format (no seconds) matches nothing here and passes
+  // through unchanged.
+  return iso.replace(/:00\.000Z$/, "Z");
+}
+
 export class CarbonIntensityAdapter
   implements DataAdapter<CarbonIntensityInput, CarbonIntensitySnapshot>
 {
@@ -144,10 +160,10 @@ export class CarbonIntensityAdapter
       const json = useFixtures
         ? forecastFixture
         : await (async () => {
-            const from = current.to;
-            const to = new Date(
-              new Date(current.to).getTime() + forecastHours * 60 * 60 * 1000
-            ).toISOString();
+            const from = toNesoTimestamp(current.to);
+            const to = toNesoTimestamp(
+              new Date(new Date(current.to).getTime() + forecastHours * 60 * 60 * 1000)
+            );
             return fetchJsonWithRetry(
               `${getEnv().CARBON_INTENSITY_BASE_URL}/intensity/${from}/${to}`,
               SOURCE_NAME

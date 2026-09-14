@@ -5,8 +5,9 @@ and an AI Sustainability Advisor. See `PRODUCT_SPEC.md` for the product spec and
 `ARCHITECTURE.md` for the technical design.
 
 ## Status
-This is a **Phase 0 + Phase 1** scaffold: project setup, docs, testing foundation,
-database schema, and the postcode/location service are implemented. Everything
+This is a **Phase 0–3** build: project setup, docs, testing foundation,
+database schema, the postcode/location service, GB electricity carbon-intensity
+integration (NESO), and PVGIS solar integration are implemented. Everything
 else in `ROADMAP.md` is not yet built. See `PROGRESS.md` for the authoritative
 current state.
 

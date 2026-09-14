@@ -137,6 +137,37 @@ describe("CarbonIntensityAdapter", () => {
     }
   });
 
+  it("requests the forecast range using minute-precision timestamps (no seconds/milliseconds), matching NESO's documented format", async () => {
+    process.env.USE_FIXTURE_DATA = "false";
+    const currentResponse = {
+      ok: true,
+      status: 200,
+      json: async () => ({
+        data: [
+          {
+            from: "2026-09-14T11:00Z",
+            to: "2026-09-14T11:30Z",
+            intensity: { forecast: 148, actual: 152, index: "moderate" },
+          },
+        ],
+      }),
+    } as unknown as Response;
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(currentResponse) // current
+      .mockResolvedValue({ ok: true, status: 200, json: async () => ({ data: [] }) } as unknown as Response); // forecast + generation (shape doesn't matter here)
+
+    vi.stubGlobal("fetch", fetchMock);
+
+    const adapter = new CarbonIntensityAdapter();
+    await adapter.fetch({ forecastHours: 24 });
+
+    const forecastUrl = fetchMock.mock.calls[1]?.[0] as string;
+    expect(forecastUrl).toContain("/intensity/2026-09-14T11:30Z/2026-09-15T11:30Z");
+    expect(forecastUrl).not.toMatch(/\.\d{3}Z/); // no milliseconds
+  });
+
   it("retries once on a 5xx before failing", async () => {
     process.env.USE_FIXTURE_DATA = "false";
     const fetchMock = vi
