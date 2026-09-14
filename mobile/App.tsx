@@ -12,6 +12,8 @@ import {
   View,
 } from 'react-native';
 
+type TabKey = 'overview' | 'solar' | 'energy' | 'advisor';
+
 type LocationData = {
   latitude: number;
   longitude: number;
@@ -89,9 +91,10 @@ export default function App() {
   const [analysis, setAnalysis] = useState<AnalysisState>({});
   const [question, setQuestion] = useState('Should I charge my EV later today?');
   const [asking, setAsking] = useState(false);
+  const [activeTab, setActiveTab] = useState<TabKey>('overview');
 
-  const summaryCards = useMemo(() => {
-    return [
+  const summaryCards = useMemo(
+    () => [
       {
         label: 'GreenScore',
         value: analysis.green ? `${analysis.green.totalScore}/100` : '--',
@@ -107,8 +110,9 @@ export default function App() {
         value: analysis.energy ? analysis.energy.current.index : '--',
         accent: '#fbbf24',
       },
-    ];
-  }, [analysis]);
+    ],
+    [analysis],
+  );
 
   const analyze = async () => {
     setLoading(true);
@@ -196,38 +200,134 @@ export default function App() {
     }
   };
 
+  const renderOverview = () => (
+    <>
+      <View style={styles.heroCard}>
+        <Text style={styles.kicker}>CleanTech Advisor</Text>
+        <Text style={styles.title}>Your home energy score</Text>
+        <Text style={styles.subtitle}>Track solar, carbon intensity and sustainable actions in one place.</Text>
+
+        <View style={styles.searchRow}>
+          <TextInput
+            value={postcode}
+            onChangeText={setPostcode}
+            autoCapitalize="characters"
+            style={styles.input}
+            placeholder="SW1A 1AA"
+          />
+          <TouchableOpacity style={styles.primaryButton} onPress={analyze} disabled={loading}>
+            <Text style={styles.primaryButtonText}>{loading ? 'Checking…' : 'Go'}</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <View style={styles.summaryRow}>
+        {summaryCards.map((card) => (
+          <View key={card.label} style={[styles.metricCard, { borderColor: card.accent }]}>
+            <Text style={styles.metricLabel}>{card.label}</Text>
+            <Text style={[styles.metricValue, { color: card.accent }]}>{card.value}</Text>
+          </View>
+        ))}
+      </View>
+
+      {analysis.location ? (
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>Location</Text>
+          <Text style={styles.bodyText}>
+            {analysis.location.postcodeOutward} · {analysis.location.region ?? 'Unknown region'}
+          </Text>
+        </View>
+      ) : null}
+
+      {analysis.green ? (
+        <View style={styles.card}>
+          <Text style={styles.sectionTitle}>GreenScore</Text>
+          <Text style={styles.scoreValue}>{analysis.green.totalScore}/100</Text>
+          <Text style={styles.bodyText}>Your sustainability and clean-tech readiness score.</Text>
+          {analysis.green.strengths && analysis.green.strengths.length > 0 ? (
+            <Text style={styles.metaText}>• {analysis.green.strengths[0]}</Text>
+          ) : null}
+        </View>
+      ) : null}
+    </>
+  );
+
+  const renderSolar = () => (
+    <>
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Solar potential</Text>
+        {analysis.solar ? (
+          <>
+            <Text style={styles.bodyText}>Annual generation: {Math.round(analysis.solar.annualGenerationKwh)} kWh</Text>
+            <Text style={styles.bodyText}>Irradiation: {Math.round(analysis.solar.annualIrradiationKwhPerM2)} kWh/m²</Text>
+            <Text style={styles.metaText}>System assumptions: {analysis.solar.assumptions?.peakPowerKw ?? '3.5'} kW</Text>
+          </>
+        ) : (
+          <Text style={styles.bodyText}>Enter a postcode to review solar potential for your home.</Text>
+        )}
+      </View>
+    </>
+  );
+
+  const renderEnergy = () => (
+    <>
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Energy now</Text>
+        {analysis.energy ? (
+          <>
+            <Text style={styles.bodyText}>Current index: {analysis.energy.current.index}</Text>
+            <Text style={styles.bodyText}>{analysis.energy.interpretation?.currentSummary ?? 'Carbon intensity summary unavailable.'}</Text>
+            <Text style={styles.metaText}>Best flexible use window: {analysis.energy.interpretation?.flexibleUseSuggestion?.message ?? 'Not available'}</Text>
+          </>
+        ) : (
+          <Text style={styles.bodyText}>Check your live grid carbon intensity and recommended flexible usage times.</Text>
+        )}
+      </View>
+    </>
+  );
+
+  const renderAdvisor = () => (
+    <>
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>AI advisor</Text>
+        {!analysis.location ? (
+          <Text style={styles.bodyText}>Analyse a postcode first to unlock tailored recommendations.</Text>
+        ) : (
+          <>
+            <TextInput
+              value={question}
+              onChangeText={setQuestion}
+              style={styles.inputArea}
+              multiline
+              placeholder="Ask about the best energy actions for today"
+            />
+            <TouchableOpacity style={styles.secondaryButton} onPress={askAdvisor} disabled={asking}>
+              <Text style={styles.secondaryButtonText}>{asking ? 'Thinking…' : 'Ask advisor'}</Text>
+            </TouchableOpacity>
+            {analysis.advisorAnswer ? <Text style={styles.answerText}>{analysis.advisorAnswer}</Text> : null}
+          </>
+        )}
+      </View>
+    </>
+  );
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'solar':
+        return renderSolar();
+      case 'energy':
+        return renderEnergy();
+      case 'advisor':
+        return renderAdvisor();
+      default:
+        return renderOverview();
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="light" />
       <ScrollView contentContainerStyle={styles.container}>
-        <View style={styles.heroCard}>
-          <Text style={styles.kicker}>CleanTech Advisor</Text>
-          <Text style={styles.title}>Your home energy score</Text>
-          <Text style={styles.subtitle}>Track your solar, carbon intensity, and sustainable actions in one place.</Text>
-
-          <View style={styles.searchRow}>
-            <TextInput
-              value={postcode}
-              onChangeText={setPostcode}
-              autoCapitalize="characters"
-              style={styles.input}
-              placeholder="SW1A 1AA"
-            />
-            <TouchableOpacity style={styles.primaryButton} onPress={analyze} disabled={loading}>
-              <Text style={styles.primaryButtonText}>{loading ? 'Checking…' : 'Go'}</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        <View style={styles.summaryRow}>
-          {summaryCards.map((card) => (
-            <View key={card.label} style={[styles.metricCard, { borderColor: card.accent }]}>
-              <Text style={styles.metricLabel}>{card.label}</Text>
-              <Text style={[styles.metricValue, { color: card.accent }]}>{card.value}</Text>
-            </View>
-          ))}
-        </View>
-
         {error ? (
           <View style={styles.errorCard}>
             <Text style={styles.errorText}>{error}</Text>
@@ -241,61 +341,28 @@ export default function App() {
           </View>
         ) : null}
 
-        {analysis.location ? (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Location</Text>
-            <Text style={styles.bodyText}>
-              {analysis.location.postcodeOutward} · {analysis.location.region ?? 'Unknown region'}
-            </Text>
-          </View>
-        ) : null}
-
-        {analysis.green ? (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>GreenScore</Text>
-            <Text style={styles.scoreValue}>{analysis.green.totalScore}/100</Text>
-            <Text style={styles.bodyText}>Your sustainability and clean-tech readiness score.</Text>
-            {analysis.green.strengths && analysis.green.strengths.length > 0 ? (
-              <Text style={styles.metaText}>• {analysis.green.strengths[0]}</Text>
-            ) : null}
-          </View>
-        ) : null}
-
-        {analysis.solar ? (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Solar potential</Text>
-            <Text style={styles.bodyText}>Annual generation: {Math.round(analysis.solar.annualGenerationKwh)} kWh</Text>
-            <Text style={styles.bodyText}>Irradiation: {Math.round(analysis.solar.annualIrradiationKwhPerM2)} kWh/m²</Text>
-          </View>
-        ) : null}
-
-        {analysis.energy ? (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>Energy now</Text>
-            <Text style={styles.bodyText}>Current index: {analysis.energy.current.index}</Text>
-            <Text style={styles.bodyText}>
-              {analysis.energy.interpretation?.currentSummary ?? 'Carbon intensity summary unavailable.'}
-            </Text>
-          </View>
-        ) : null}
-
-        {analysis.location ? (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>AI advisor</Text>
-            <TextInput
-              value={question}
-              onChangeText={setQuestion}
-              style={styles.inputArea}
-              multiline
-              placeholder="Ask about the best energy actions for today"
-            />
-            <TouchableOpacity style={styles.secondaryButton} onPress={askAdvisor} disabled={asking}>
-              <Text style={styles.secondaryButtonText}>{asking ? 'Thinking…' : 'Ask advisor'}</Text>
-            </TouchableOpacity>
-            {analysis.advisorAnswer ? <Text style={styles.answerText}>{analysis.advisorAnswer}</Text> : null}
-          </View>
-        ) : null}
+        {renderContent()}
       </ScrollView>
+
+      <View style={styles.tabBar}>
+        {[
+          { key: 'overview', label: 'Home' },
+          { key: 'solar', label: 'Solar' },
+          { key: 'energy', label: 'Energy' },
+          { key: 'advisor', label: 'Advisor' },
+        ].map((tab) => {
+          const isActive = activeTab === tab.key;
+          return (
+            <TouchableOpacity
+              key={tab.key}
+              style={[styles.tabItem, isActive && styles.tabItemActive]}
+              onPress={() => setActiveTab(tab.key as TabKey)}
+            >
+              <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{tab.label}</Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
     </SafeAreaView>
   );
 }
@@ -307,7 +374,7 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: 18,
-    paddingBottom: 32,
+    paddingBottom: 120,
   },
   heroCard: {
     backgroundColor: '#0b1727',
@@ -467,5 +534,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
     marginTop: 12,
+  },
+  tabBar: {
+    position: 'absolute',
+    bottom: 18,
+    left: 18,
+    right: 18,
+    backgroundColor: '#0f172a',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#1e293b',
+    flexDirection: 'row',
+    padding: 8,
+  },
+  tabItem: {
+    flex: 1,
+    paddingVertical: 10,
+    alignItems: 'center',
+    borderRadius: 12,
+  },
+  tabItemActive: {
+    backgroundColor: '#1d4ed8',
+  },
+  tabLabel: {
+    color: '#cbd5e1',
+    fontSize: 12,
+    fontWeight: '700',
+  },
+  tabLabelActive: {
+    color: '#f8fafc',
   },
 });
