@@ -2,17 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { getEnv } from "@/server/lib/env";
 
 export async function GET(req: NextRequest) {
-  const postcode = req.nextUrl.searchParams.get("postcode")?.trim();
+  const rawPostcode = req.nextUrl.searchParams.get("postcode")?.trim();
 
-  if (!postcode) {
+  if (!rawPostcode) {
     return NextResponse.json(
       { ok: false, message: "A postcode is required." },
       { status: 400 }
     );
   }
 
+  const normalized = rawPostcode.toUpperCase().replace(/\s+/g, " ").trim();
+  const outward = normalized.split(" ")[0] || normalized;
   const env = getEnv();
-  const url = `${env.POSTCODES_IO_BASE_URL}/postcodes/${encodeURIComponent(postcode)}/autocomplete`;
+  const url = `${env.POSTCODES_IO_BASE_URL}/postcodes/${encodeURIComponent(outward)}/autocomplete`;
 
   try {
     const response = await fetch(url, {
