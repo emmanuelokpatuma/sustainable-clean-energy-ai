@@ -94,7 +94,7 @@ export default function EnergyNowScreen() {
   return (
     <main style={{ maxWidth: 560, margin: "3rem auto", fontFamily: "system-ui", padding: "0 1rem" }}>
       <h1>Energy Now</h1>
-      <p style={{ color: "#555" }}>What's happening with electricity right now.</p>
+      <p style={{ color: "#555" }}>What&apos;s happening with electricity right now.</p>
 
       {state.status === "loading" && <p>Checking current grid conditions…</p>}
 

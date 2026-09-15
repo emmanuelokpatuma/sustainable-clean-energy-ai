@@ -82,7 +82,7 @@ export default function LocationScreen() {
             {state.location.region ? `, ${state.location.region}` : ""}
           </p>
           <p style={{ color: "#555", fontSize: "0.9rem" }}>
-            We'll use this to look up solar and electricity data for your area.
+            We&apos;ll use this to look up solar and electricity data for your area.
           </p>
         </div>
       )}

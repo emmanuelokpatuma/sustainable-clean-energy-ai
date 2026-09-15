@@ -15,7 +15,13 @@ import { z } from "zod";
  */
 
 export const componentScoreSchema = z.object({
-  key: z.string(),
+  key: z.enum([
+    "energyEfficiency",
+    "renewableOpportunity",
+    "carbonOptimisation",
+    "cleantechOpportunity",
+    "userProgress",
+  ]),
   label: z.string(),
   included: z.boolean(),
   score: z.number().nullable(),
@@ -58,7 +64,7 @@ export const solarScoreResultSchema = z.object({
     }),
     z.object({ available: z.literal(false), reason: z.string() }),
   ]),
-  confidence: z.string(),
+  confidence: z.literal("modelled-estimate"),
   assumptions: z.array(z.string()),
   limitations: z.array(z.string()),
   dataSources: z.array(z.string()),
@@ -67,14 +73,14 @@ export const solarScoreResultSchema = z.object({
 
 export const energyNowContextSchema = z.object({
   current: z.object({
-    index: z.string(),
+    index: z.enum(["very low", "low", "moderate", "high", "very high"]),
     actual: z.number().nullable(),
     from: z.string(),
     to: z.string(),
   }),
   interpretation: z.object({
     currentSummary: z.string(),
-    currentIndex: z.string(),
+    currentIndex: z.enum(["very low", "low", "moderate", "high", "very high"]),
     flexibleUseSuggestion: z.union([
       z.object({
         available: z.literal(true),
@@ -82,7 +88,7 @@ export const energyNowContextSchema = z.object({
         to: z.string(),
         timingLabel: z.string(),
         forecastGCo2PerKwh: z.number(),
-        index: z.string(),
+        index: z.enum(["very low", "low", "moderate", "high", "very high"]),
         message: z.string(),
       }),
       z.object({ available: z.literal(false), reason: z.string() }),

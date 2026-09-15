@@ -43,7 +43,7 @@ export interface GreenScoreInputs {
   carbonIntensity?: {
     currentIndex: CarbonIndexLabel;
     /** Forecast gCO2/kWh values, if available — used to gauge timing opportunity. */
-    forecastValues?: number[] | null;
+    forecastValues?: Array<number | null> | null;
   } | null;
   /** Not available until Phase 8 (Action Plans) exists to produce it. */
   actionProgress?: {
@@ -82,7 +82,7 @@ export interface GreenScoreResult {
 
 export type GreenScoreOutcome =
   | { ok: true; result: GreenScoreResult }
-  | { ok: false; reason: "insufficient_data"; message: string };
+  | { ok: false, reason: "insufficient_data", message: string };
 
 // ---------------------------------------------------------------------------
 // Component 1: Energy efficiency

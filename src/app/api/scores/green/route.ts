@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 import { calculateGreenScore } from "@/server/calculations/greenScore";
 import { getCurrentUser } from "@/server/lib/auth";
@@ -108,11 +109,11 @@ export async function POST(req: NextRequest) {
         propertyId: property.id,
         totalScore: result.totalScore,
         formulaVersion: result.formulaVersion,
-        componentScoresJson: result.componentScores,
-        strengthsJson: result.strengths,
-        opportunitiesJson: result.opportunities,
-        assumptionsJson: result.assumptions,
-        dataSourcesJson: result.dataSources,
+        componentScoresJson: result.componentScores as unknown as Prisma.InputJsonValue,
+        strengthsJson: result.strengths as unknown as Prisma.InputJsonValue,
+        opportunitiesJson: result.opportunities as unknown as Prisma.InputJsonValue,
+        assumptionsJson: result.assumptions as unknown as Prisma.InputJsonValue,
+        dataSourcesJson: result.dataSources as unknown as Prisma.InputJsonValue,
         calculatedAt: new Date(result.calculatedAt),
       },
     });

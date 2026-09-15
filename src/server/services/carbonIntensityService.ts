@@ -1,5 +1,6 @@
 import { CarbonIntensityAdapter } from "../adapters/carbonIntensityAdapter";
 import { AdapterError } from "../adapters/types";
+import type { CarbonIndexLabel } from "../calculations/greenScore";
 import { logger } from "../lib/logger";
 
 export interface EnergyNowData {
@@ -8,7 +9,7 @@ export interface EnergyNowData {
     to: string;
     forecast: number | null;
     actual: number | null;
-    index: string;
+    index: CarbonIndexLabel;
   };
   forecast:
     | { available: true; periods: EnergyNowData["current"][] }

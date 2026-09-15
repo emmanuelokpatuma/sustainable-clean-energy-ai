@@ -45,23 +45,24 @@ export async function POST(req: NextRequest) {
   }
   const { location } = locationResult;
 
-  // Every resolve creates a fresh Location row rather than deduplicating by
-  // postcode — simple and correct for V1's scale; deduplication would be a
-  // reasonable follow-up once this table has real volume.
+  // Create the location row first, then attach it to the property with the
+  // required `locationId` relation field to match the Prisma schema exactly.
+  const locationRow = await prisma.location.create({
+    data: {
+      postcodeOutward: location.postcodeOutward,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      adminDistrict: location.adminDistrict,
+      region: location.region,
+      source: location.source,
+    },
+  });
+
   const property = await prisma.property.create({
     data: {
       userId: user.id,
       label: parsed.data.label ?? null,
-      location: {
-        create: {
-          postcodeOutward: location.postcodeOutward,
-          latitude: location.latitude,
-          longitude: location.longitude,
-          adminDistrict: location.adminDistrict,
-          region: location.region,
-          source: location.source,
-        },
-      },
+      locationId: locationRow.id,
     },
     include: { location: true },
   });

@@ -188,7 +188,7 @@ export default function SettingsScreen() {
             <ul style={{ paddingLeft: "1.2rem", fontSize: "0.9rem", color: "#444" }}>
               <li>Your email and a hashed password — to identify your account.</li>
               <li>
-                For each saved property: the outward part of its postcode (e.g. "SW1A", never the full
+                For each saved property: the outward part of its postcode (e.g. &apos;SW1A&apos;, never the full
                 postcode) and coordinates — used to look up solar and electricity data for that area.
               </li>
               <li>GreenScore results you save, so you can see how they change over time.</li>

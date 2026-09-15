@@ -132,13 +132,13 @@ const SOLAR_SCORE_NO_FINANCE: SolarScoreResult = {
   dataSources: ["PVGIS (via Phase 3 SolarAssessment)"],
 };
 
-const ENERGY_NOW_WITH_SUGGESTION = {
+const ENERGY_NOW_WITH_SUGGESTION: GroundingContextInput["energyNow"] = {
   current: { index: "moderate", actual: 148, from: "2026-09-14T11:00Z", to: "2026-09-14T11:30Z" },
   interpretation: {
     currentSummary: "Electricity is currently at a moderate carbon intensity.",
     currentIndex: "moderate",
     flexibleUseSuggestion: {
-      available: true as const,
+      available: true,
       from: "2026-09-14T15:00Z",
       to: "2026-09-14T15:30Z",
       timingLabel: "later today (afternoon)",
@@ -154,14 +154,14 @@ const ENERGY_NOW_WITH_SUGGESTION = {
   isFixture: false,
 };
 
-const ENERGY_NOW_VERY_HIGH = {
+const ENERGY_NOW_VERY_HIGH: GroundingContextInput["energyNow"] = {
   current: { index: "very high", actual: 310, from: "2026-09-14T18:00Z", to: "2026-09-14T18:30Z" },
   interpretation: {
     currentSummary:
       "Electricity is currently very high-carbon — consider delaying flexible electricity use if you can.",
     currentIndex: "very high",
     flexibleUseSuggestion: {
-      available: false as const,
+      available: false,
       reason: "No significantly cleaner window was found in the forecast.",
     },
     essentialServicesCaveat:
