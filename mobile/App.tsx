@@ -10,7 +10,10 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  Dimensions,
 } from 'react-native';
+
+const { width } = Dimensions.get('window');
 
 type TabKey = 'overview' | 'solar' | 'energy' | 'advisor' | 'plan';
 
@@ -98,11 +101,11 @@ async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export default function App() {
-  const [postcode, setPostcode] = useState('SW1A 1AA');
+  const [postcode, setPostcode] = useState('HG3 2UY');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<AnalysisState>({});
-  const [question, setQuestion] = useState('Should I charge my EV later today?');
+  const [question, setQuestion] = useState('What\'s the best time to charge my EV today?');
   const [asking, setAsking] = useState(false);
   const [activeTab, setActiveTab] = useState<TabKey>('overview');
   const [showOnboarding, setShowOnboarding] = useState(true);
@@ -110,16 +113,25 @@ export default function App() {
 
   const onboardingSteps = [
     {
-      title: 'Home energy clarity',
-      body: 'See your GreenScore, solar potential, and grid intensity in one simple snapshot.',
+      title: 'Welcome to CleanTech',
+      subtitle: 'Home Energy Insights',
+      body: 'Track your GreenScore, solar potential, and grid carbon intensity in one beautiful snapshot.',
+      emoji: '⚡',
+      color: '#10b981',
     },
     {
-      title: 'Smarter timing',
-      body: 'Know when to shift EV charging, washing, and other flexible loads to lower-carbon periods.',
+      title: 'Smart Timing',
+      subtitle: 'Lower Your Carbon Footprint',
+      body: 'Know exactly when to shift EV charging and flexible loads to lower-carbon periods.',
+      emoji: '🌍',
+      color: '#06b6d4',
     },
     {
-      title: 'AI-powered guidance',
-      body: 'Ask tailored questions grounded in your home’s real solar and energy performance.',
+      title: 'AI Guidance',
+      subtitle: 'Grounded in Real Data',
+      body: 'Ask tailored questions grounded in your home\'s real solar and energy performance.',
+      emoji: '🤖',
+      color: '#f59e0b',
     },
   ];
 
@@ -127,42 +139,31 @@ export default function App() {
     () => [
       {
         label: 'GreenScore',
-        value: analysis.green ? `${analysis.green.totalScore}/100` : '--',
-        accent: '#34d399',
+        value: analysis.green ? `${analysis.green.totalScore}` : '--',
+        subtext: 'Sustainability',
+        accent: '#10b981',
+        emoji: '🌱',
       },
       {
         label: 'Solar',
-        value: analysis.solar ? `${Math.round(analysis.solar.annualGenerationKwh)} kWh` : '--',
-        accent: '#60a5fa',
+        value: analysis.solar ? `${Math.round(analysis.solar.annualGenerationKwh)}` : '--',
+        subtext: 'kWh/year',
+        accent: '#f59e0b',
+        emoji: '☀️',
       },
       {
         label: 'Grid',
-        value: analysis.energy ? analysis.energy.current.index : '--',
-        accent: '#fbbf24',
+        value: analysis.energy ? analysis.energy.current.index.toUpperCase() : '--',
+        subtext: 'Carbon',
+        accent: '#06b6d4',
+        emoji: '🔌',
       },
     ],
     [analysis],
   );
 
-  const quickActions = useMemo(
-    () => [
-      { label: 'EV charging', value: 'Later today', tone: '#22c55e' },
-      { label: 'Solar output', value: 'Strong daylight', tone: '#60a5fa' },
-      { label: 'Home usage', value: 'Energy efficient', tone: '#fbbf24' },
-    ],
-    [analysis],
-  );
-
-  const opportunityMessage = useMemo(() => {
-    if (!analysis.energy) return 'Check a postcode to unlock tailored recommendations.';
-    if (analysis.energy.current.index === 'low') {
-      return 'This is a good window to shift flexible usage and charge devices.';
-    }
-    if (analysis.energy.current.index === 'moderate') {
-      return 'A moderate grid mix means a good opportunity to schedule non-essential loads.';
-    }
-    return 'Grid intensity is elevated, so keep flexible use to the lower-carbon periods.';
-  }, [analysis]);
+  const solarBars = [42, 58, 65, 72, 80, 86, 75, 68, 62, 52, 45, 38];
+  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   const analyze = async () => {
     setLoading(true);
@@ -268,229 +269,308 @@ export default function App() {
   };
 
   const renderOnboarding = () => (
-    <View style={styles.onboardingWrap}>
-      <View style={styles.logoCard}>
-        <Text style={styles.logoBadge}>C</Text>
-        <Text style={styles.logoTitle}>CleanTech Advisor</Text>
+    <View style={styles.onboardingContainer}>
+      <View style={styles.onboardingLogoWrap}>
+        <View style={[styles.onboardingEmojiBg, { backgroundColor: onboardingSteps[onboardingStep].color }]}>
+          <Text style={styles.onboardingEmoji}>{onboardingSteps[onboardingStep].emoji}</Text>
+        </View>
+        <Text style={styles.onboardingLogoText}>CleanTech Advisor</Text>
       </View>
 
-      <View style={styles.onboardingCard}>
-        <Text style={styles.onboardingStep}>0{onboardingStep + 1}</Text>
-        <Text style={styles.onboardingTitle}>{onboardingSteps[onboardingStep].title}</Text>
+      <View style={styles.onboardingCardWrap}>
+        <Text style={styles.onboardingCounter}>
+          {onboardingStep + 1}/{onboardingSteps.length}
+        </Text>
+        <Text style={styles.onboardingHeading}>{onboardingSteps[onboardingStep].title}</Text>
+        <Text style={styles.onboardingSubheading}>{onboardingSteps[onboardingStep].subtitle}</Text>
         <Text style={styles.onboardingBody}>{onboardingSteps[onboardingStep].body}</Text>
 
         <View style={styles.onboardingDots}>
-          {onboardingSteps.map((_, index) => (
+          {onboardingSteps.map((_, i) => (
             <View
-              key={index}
-              style={[styles.dot, onboardingStep === index && styles.dotActive]}
+              key={i}
+              style={[
+                styles.onboardingDot,
+                onboardingStep === i && styles.onboardingDotActive,
+              ]}
             />
           ))}
         </View>
 
-        <View style={styles.onboardingActions}>
-          <TouchableOpacity
-            style={styles.secondaryButton}
-            onPress={() => (onboardingStep === onboardingSteps.length - 1 ? setShowOnboarding(false) : setOnboardingStep((current) => current + 1))}
-          >
-            <Text style={styles.secondaryButtonText}>
-              {onboardingStep === onboardingSteps.length - 1 ? 'Get started' : 'Next'}
-            </Text>
-          </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.onboardingPrimaryBtn, { backgroundColor: onboardingSteps[onboardingStep].color }]}
+          onPress={() => {
+            if (onboardingStep === onboardingSteps.length - 1) {
+              setShowOnboarding(false);
+            } else {
+              setOnboardingStep((s) => s + 1);
+            }
+          }}
+        >
+          <Text style={styles.onboardingPrimaryBtnText}>
+            {onboardingStep === onboardingSteps.length - 1 ? '✨ Get Started' : 'Continue'}
+          </Text>
+        </TouchableOpacity>
 
-          {onboardingStep > 0 ? (
-            <TouchableOpacity
-              style={styles.textButton}
-              onPress={() => setOnboardingStep((current) => Math.max(0, current - 1))}
-            >
-              <Text style={styles.textButtonText}>Back</Text>
-            </TouchableOpacity>
-          ) : null}
-        </View>
+        {onboardingStep > 0 && (
+          <TouchableOpacity
+            style={styles.onboardingSecondaryBtn}
+            onPress={() => setOnboardingStep((s) => Math.max(0, s - 1))}
+          >
+            <Text style={styles.onboardingSecondaryBtnText}>← Back</Text>
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
 
-  const solarBars = [42, 58, 65, 72, 80, 86, 75, 68, 62, 52, 45, 38];
-
   const renderOverview = () => (
     <>
-      <View style={styles.heroCard}>
-        <Text style={styles.kicker}>CleanTech Advisor</Text>
-        <Text style={styles.title}>Your home energy score</Text>
-        <Text style={styles.subtitle}>Track solar, carbon intensity and sustainable actions in one place.</Text>
+      <View style={styles.heroGradient}>
+        <Text style={styles.heroLabel}>Welcome Home</Text>
+        <Text style={styles.heroTitle}>Your Energy Dashboard</Text>
+        <Text style={styles.heroCaption}>Real-time UK data • Personalized insights</Text>
+      </View>
 
-        <View style={styles.searchRow}>
+      <View style={styles.searchBox}>
+        <View style={styles.searchInputWrap}>
           <TextInput
             value={postcode}
             onChangeText={setPostcode}
             autoCapitalize="characters"
-            style={styles.input}
-            placeholder="SW1A 1AA"
+            style={styles.searchInput}
+            placeholder="Enter UK postcode"
+            placeholderTextColor="#64748b"
           />
-          <TouchableOpacity style={styles.primaryButton} onPress={analyze} disabled={loading}>
-            <Text style={styles.primaryButtonText}>{loading ? 'Checking…' : 'Go'}</Text>
-          </TouchableOpacity>
         </View>
+        <TouchableOpacity style={styles.searchBtn} onPress={analyze} disabled={loading}>
+          <Text style={styles.searchBtnText}>{loading ? '…' : '→'}</Text>
+        </TouchableOpacity>
       </View>
 
-      <View style={styles.summaryRow}>
+      <View style={styles.metricsRow}>
         {summaryCards.map((card) => (
-          <View key={card.label} style={[styles.metricCard, { borderColor: card.accent }]}>
-            <Text style={styles.metricLabel}>{card.label}</Text>
-            <Text style={[styles.metricValue, { color: card.accent }]}>{card.value}</Text>
+          <View key={card.label} style={[styles.metricCard, { borderColor: card.accent + '40' }]}>
+            <Text style={styles.metricEmoji}>{card.emoji}</Text>
+            <Text style={[styles.metricNumber, { color: card.accent }]}>{card.value}</Text>
+            <Text style={styles.metricLabel}>{card.subtext}</Text>
           </View>
         ))}
       </View>
 
-      <View style={styles.scorePanel}>
-        <View style={styles.scoreRing}>
-          <Text style={styles.scoreRingText}>{analysis.green ? analysis.green.totalScore : '—'}</Text>
-        </View>
-        <View style={styles.scoreInfo}>
-          <Text style={styles.sectionTitle}>Sustainability health</Text>
-          <Text style={styles.bodyText}>Your home is performing well with strong solar potential and a manageable grid profile.</Text>
-          <Text style={styles.metaText}>Estimated improvement path: +8 points within the next 12 months</Text>
-        </View>
-      </View>
-
-      <View style={styles.quickActionRow}>
-        {quickActions.map((action) => (
-          <View key={action.label} style={[styles.quickAction, { borderColor: action.tone }]}>
-            <Text style={styles.quickActionLabel}>{action.label}</Text>
-            <Text style={[styles.quickActionValue, { color: action.tone }]}>{action.value}</Text>
+      {analysis.green && (
+        <View style={styles.scoreCard}>
+          <View style={[styles.scoreCircle, { borderColor: '#10b981' }]}>
+            <Text style={styles.scoreNumber}>{analysis.green.totalScore}</Text>
+            <Text style={styles.scoreLabel}>Score</Text>
           </View>
-        ))}
-      </View>
+          <View style={styles.scoreTextWrap}>
+            <Text style={styles.scoreTitle}>Your Home's Sustainability</Text>
+            <Text style={styles.scoreDesc}>You're performing well with excellent solar potential.</Text>
+            <Text style={styles.scoreHint}>💡 Track your progress in the Action Plan</Text>
+          </View>
+        </View>
+      )}
 
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Solar generation</Text>
-        <View style={styles.barChart}>
-          {solarBars.map((height, index) => (
-            <View key={index} style={styles.barWrap}>
-              <View style={[styles.bar, { height: `${height}%` }]} />
-              <Text style={styles.barLabel}>{['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'][index]}</Text>
+      {analysis.solar && (
+        <View style={styles.solarChartCard}>
+          <View style={styles.cardHeader}>
+            <View>
+              <Text style={styles.cardTitle}>☀️ Solar Generation</Text>
+              <Text style={styles.cardValue}>{Math.round(analysis.solar.annualGenerationKwh)} kWh/year</Text>
             </View>
-          ))}
+          </View>
+          <View style={styles.solarChart}>
+            {solarBars.map((height, idx) => (
+              <View key={idx} style={styles.barGroup}>
+                <View
+                  style={[
+                    styles.solarBar,
+                    { height: `${height * 2}px`, backgroundColor: '#f59e0b' },
+                  ]}
+                />
+                <Text style={styles.monthLabel}>{months[idx][0]}</Text>
+              </View>
+            ))}
+          </View>
         </View>
-      </View>
+      )}
 
-      {analysis.location ? (
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>Location</Text>
-          <Text style={styles.bodyText}>
-            {analysis.location.postcodeOutward} · {analysis.location.region ?? 'Unknown region'}
-          </Text>
+      {analysis.energy && (
+        <View style={styles.energyCard}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardTitle}>🔌 Grid Carbon Intensity</Text>
+          </View>
+          <View style={styles.gridStatus}>
+            <Text style={getGridBadgeStyle(analysis.energy.current.index)}>
+              {analysis.energy.current.index.toUpperCase()}
+            </Text>
+            <Text style={styles.gridText}>{analysis.energy.interpretation?.currentSummary}</Text>
+          </View>
         </View>
-      ) : null}
+      )}
 
-      {analysis.green ? (
-        <View style={styles.card}>
-          <Text style={styles.sectionTitle}>GreenScore</Text>
-          <Text style={styles.scoreValue}>{analysis.green.totalScore}/100</Text>
-          <Text style={styles.bodyText}>Your sustainability and clean-tech readiness score.</Text>
-          {analysis.green.strengths && analysis.green.strengths.length > 0 ? (
-            <Text style={styles.metaText}>• {analysis.green.strengths[0]}</Text>
-          ) : null}
+      {analysis.location && (
+        <View style={styles.locationCard}>
+          <Text style={styles.cardTitle}>📍 Your Location</Text>
+          <Text style={styles.locationValue}>{analysis.location.postcodeOutward}</Text>
+          <Text style={styles.locationRegion}>{analysis.location.region}</Text>
         </View>
-      ) : null}
-
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Suggested next move</Text>
-        <Text style={styles.bodyText}>{opportunityMessage}</Text>
-      </View>
+      )}
     </>
   );
 
   const renderSolar = () => (
     <>
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Solar potential</Text>
-        {analysis.solar ? (
-          <>
-            <Text style={styles.bodyText}>Annual generation: {Math.round(analysis.solar.annualGenerationKwh)} kWh</Text>
-            <Text style={styles.bodyText}>Irradiation: {Math.round(analysis.solar.annualIrradiationKwhPerM2)} kWh/m²</Text>
-            <Text style={styles.metaText}>System assumptions: {analysis.solar.assumptions?.peakPowerKw ?? '3.5'} kW</Text>
-          </>
-        ) : (
-          <Text style={styles.bodyText}>Enter a postcode to review solar potential for your home.</Text>
-        )}
+      <View style={styles.screenHeader}>
+        <Text style={styles.screenTitle}>☀️ Solar Potential</Text>
       </View>
+      {analysis.solar ? (
+        <View style={styles.detailsCard}>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Annual Generation</Text>
+            <Text style={styles.detailValue}>{Math.round(analysis.solar.annualGenerationKwh)} kWh</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Annual Irradiation</Text>
+            <Text style={styles.detailValue}>{Math.round(analysis.solar.annualIrradiationKwhPerM2)} kWh/m²</Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>System Size</Text>
+            <Text style={styles.detailValue}>{analysis.solar.assumptions?.peakPowerKw ?? '3.5'} kW</Text>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.emptyCard}>
+          <Text style={styles.empytText}>📍 Enter a postcode to see your solar potential</Text>
+        </View>
+      )}
     </>
   );
 
+  const getGridBadgeStyle = (index: string) => {
+    switch (index) {
+      case 'low':
+        return styles.gridBadgelow;
+      case 'moderate':
+        return styles.gridBadgemoderate;
+      case 'high':
+        return styles.gridBadgehigh;
+      default:
+        return styles.gridBadgelow;
+    }
+  };
+
+  const getCarboColorStyle = (index: string) => {
+    switch (index) {
+      case 'low':
+        return styles.carbonlow;
+      case 'moderate':
+        return styles.carbonmoderate;
+      case 'high':
+        return styles.carbonhigh;
+      default:
+        return styles.carbonlow;
+    }
+  };
+
   const renderEnergy = () => (
     <>
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Energy now</Text>
-        {analysis.energy ? (
-          <>
-            <Text style={styles.bodyText}>Current index: {analysis.energy.current.index}</Text>
-            <Text style={styles.bodyText}>{analysis.energy.interpretation?.currentSummary ?? 'Carbon intensity summary unavailable.'}</Text>
-            <Text style={styles.metaText}>Best flexible use window: {analysis.energy.interpretation?.flexibleUseSuggestion?.message ?? 'Not available'}</Text>
-          </>
-        ) : (
-          <Text style={styles.bodyText}>Check your live grid carbon intensity and recommended flexible usage times.</Text>
-        )}
+      <View style={styles.screenHeader}>
+        <Text style={styles.screenTitle}>🔌 Grid Status</Text>
       </View>
+      {analysis.energy ? (
+        <View style={styles.detailsCard}>
+          <View style={styles.detailRow}>
+            <Text style={styles.detailLabel}>Carbon Intensity</Text>
+            <Text style={[styles.detailValue, getCarboColorStyle(analysis.energy.current.index)]}>
+              {analysis.energy.current.index.toUpperCase()}
+            </Text>
+          </View>
+          <View style={styles.divider} />
+          <View style={styles.detailDesc}>{analysis.energy.interpretation?.currentSummary}</View>
+          {analysis.energy.interpretation?.flexibleUseSuggestion?.message && (
+            <>
+              <View style={styles.divider} />
+              <View style={styles.detailDesc}>💡 {analysis.energy.interpretation.flexibleUseSuggestion.message}</View>
+            </>
+          )}
+        </View>
+      ) : (
+        <View style={styles.emptyCard}>
+          <Text style={styles.empytText}>⚡ Live grid carbon data coming soon</Text>
+        </View>
+      )}
     </>
   );
 
   const renderAdvisor = () => (
     <>
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>AI advisor</Text>
-        {!analysis.location ? (
-          <Text style={styles.bodyText}>Analyse a postcode first to unlock tailored recommendations.</Text>
-        ) : (
-          <>
-            <TextInput
-              value={question}
-              onChangeText={setQuestion}
-              style={styles.inputArea}
-              multiline
-              placeholder="Ask about the best energy actions for today"
-            />
-            <TouchableOpacity style={styles.secondaryButton} onPress={askAdvisor} disabled={asking}>
-              <Text style={styles.secondaryButtonText}>{asking ? 'Thinking…' : 'Ask advisor'}</Text>
-            </TouchableOpacity>
-            {analysis.advisorAnswer ? <Text style={styles.answerText}>{analysis.advisorAnswer}</Text> : null}
-          </>
-        )}
+      <View style={styles.screenHeader}>
+        <Text style={styles.screenTitle}>🤖 AI Advisor</Text>
       </View>
+      {!analysis.location ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.empytText}>📍 Enter a postcode first to unlock AI recommendations</Text>
+        </View>
+      ) : (
+        <View style={styles.detailsCard}>
+          <TextInput
+            value={question}
+            onChangeText={setQuestion}
+            style={styles.advisorInput}
+            placeholder="Ask your energy question…"
+            placeholderTextColor="#64748b"
+            multiline
+          />
+          <TouchableOpacity style={styles.askBtn} onPress={askAdvisor} disabled={asking}>
+            <Text style={styles.askBtnText}>{asking ? '💭 Thinking…' : '✨ Ask Advisor'}</Text>
+          </TouchableOpacity>
+          {analysis.advisorAnswer && (
+            <View style={styles.answerBox}>
+              <Text style={styles.answerText}>{analysis.advisorAnswer}</Text>
+            </View>
+          )}
+        </View>
+      )}
     </>
   );
 
   const renderPlan = () => (
     <>
-      <View style={styles.card}>
-        <Text style={styles.sectionTitle}>Action plan</Text>
-        {analysis.actionPlan && analysis.actionPlan.length > 0 ? (
-          analysis.actionPlan.map((item) => (
-            <View key={item.id} style={styles.actionCard}>
-              <View style={styles.actionHeaderRow}>
-                <Text style={styles.actionPriority}>P{item.priority}</Text>
-                <Text style={styles.actionDifficulty}>{item.difficulty}</Text>
-              </View>
-              <Text style={styles.actionTitle}>{item.title}</Text>
-              <Text style={styles.bodyText}>{item.explanation}</Text>
-              {item.suggestedNextStep ? (
-                <Text style={styles.metaText}>Next step: {item.suggestedNextStep}</Text>
-              ) : null}
-            </View>
-          ))
-        ) : (
-          <Text style={styles.bodyText}>No high-confidence actions were identified yet. Try another postcode or check your home profile later.</Text>
-        )}
-
-        {analysis.actionPlanNotes && analysis.actionPlanNotes.length > 0 ? (
-          <View style={styles.noteCard}>
-            {analysis.actionPlanNotes.map((note) => (
-              <Text key={note} style={styles.noteText}>• {note}</Text>
-            ))}
-          </View>
-        ) : null}
+      <View style={styles.screenHeader}>
+        <Text style={styles.screenTitle}>📋 Action Plan</Text>
       </View>
+      {analysis.actionPlan && analysis.actionPlan.length > 0 ? (
+        analysis.actionPlan.map((item) => (
+          <View key={item.id} style={styles.actionItem}>
+            <View style={styles.actionHeader}>
+              <Text style={styles.actionTitle}>{item.title}</Text>
+              <View style={styles.actionTags}>
+                <Text style={styles.actionTag}>{item.difficulty}</Text>
+                <Text style={styles.actionTag}>P{item.priority}</Text>
+              </View>
+            </View>
+            <Text style={styles.actionDesc}>{item.explanation}</Text>
+            {item.suggestedNextStep && (
+              <Text style={styles.actionNext}>→ {item.suggestedNextStep}</Text>
+            )}
+          </View>
+        ))
+      ) : (
+        <View style={styles.emptyCard}>
+          <Text style={styles.empytText}>🎯 No actions identified yet</Text>
+        </View>
+      )}
+      {analysis.actionPlanNotes && analysis.actionPlanNotes.length > 0 && (
+        <View style={styles.notesBox}>
+          {analysis.actionPlanNotes.map((note, i) => (
+            <Text key={i} style={styles.noteItem}>• {note}</Text>
+          ))}
+        </View>
+      )}
     </>
   );
 
@@ -511,9 +591,9 @@ export default function App() {
 
   if (showOnboarding) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <SafeAreaView style={styles.container}>
         <StatusBar style="light" />
-        <ScrollView contentContainerStyle={[styles.container, styles.onboardingContainer]}>
+        <ScrollView contentContainerStyle={styles.onboardingScrollContent}>
           {renderOnboarding()}
         </ScrollView>
       </SafeAreaView>
@@ -521,446 +601,627 @@ export default function App() {
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <SafeAreaView style={styles.container}>
       <StatusBar style="light" />
-      <ScrollView contentContainerStyle={styles.container}>
-        {error ? (
-          <View style={styles.errorCard}>
-            <Text style={styles.errorText}>{error}</Text>
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {error && (
+          <View style={styles.errorBox}>
+            <Text style={styles.errorMsg}>⚠️ {error}</Text>
           </View>
-        ) : null}
+        )}
 
-        {loading ? (
-          <View style={styles.loadingCard}>
-            <ActivityIndicator size="large" color="#4ade80" />
-            <Text style={styles.loadingText}>Resolving postcode and pulling together your energy profile…</Text>
+        {loading && (
+          <View style={styles.loadingBox}>
+            <ActivityIndicator size="large" color="#10b981" />
+            <Text style={styles.loadingMsg}>Analyzing your energy profile…</Text>
           </View>
-        ) : null}
+        )}
 
         {renderContent()}
       </ScrollView>
 
-      <View style={styles.tabBar}>
-        {[
-          { key: 'overview', label: 'Home' },
-          { key: 'solar', label: 'Solar' },
-          { key: 'energy', label: 'Energy' },
-          { key: 'plan', label: 'Plan' },
-          { key: 'advisor', label: 'Advisor' },
-        ].map((tab) => {
-          const isActive = activeTab === tab.key;
-          return (
+      <View style={styles.tabBarContainer}>
+        <View style={styles.tabBar}>
+          {[
+            { key: 'overview', label: 'Home', icon: '🏠' },
+            { key: 'solar', label: 'Solar', icon: '☀️' },
+            { key: 'energy', label: 'Energy', icon: '⚡' },
+            { key: 'plan', label: 'Plan', icon: '📋' },
+            { key: 'advisor', label: 'Ask', icon: '🤖' },
+          ].map((tab) => (
             <TouchableOpacity
               key={tab.key}
-              style={[styles.tabItem, isActive && styles.tabItemActive]}
+              style={[
+                styles.tabItem,
+                activeTab === tab.key && styles.tabItemActive,
+              ]}
               onPress={() => setActiveTab(tab.key as TabKey)}
             >
-              <Text style={[styles.tabLabel, isActive && styles.tabLabelActive]}>{tab.label}</Text>
+              <Text style={styles.tabIcon}>{tab.icon}</Text>
+              <Text
+                style={[
+                  styles.tabItemLabel,
+                  activeTab === tab.key && styles.tabItemLabelActive,
+                ]}
+              >
+                {tab.label}
+              </Text>
             </TouchableOpacity>
-          );
-        })}
+          ))}
+        </View>
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#06121d',
-  },
   container: {
-    padding: 18,
+    flex: 1,
+    backgroundColor: '#0a0e27',
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
     paddingBottom: 120,
   },
-  onboardingContainer: {
-    justifyContent: 'center',
+  onboardingScrollContent: {
+    paddingHorizontal: 16,
+    paddingBottom: 40,
     minHeight: '100%',
+    justifyContent: 'center',
   },
-  onboardingWrap: {
+  onboardingContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 18,
+    paddingVertical: 20,
   },
-  logoCard: {
+  onboardingLogoWrap: {
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 40,
   },
-  logoBadge: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    backgroundColor: '#22c55e',
-    color: '#04130d',
-    textAlign: 'center',
-    textAlignVertical: 'center',
-    fontSize: 30,
-    fontWeight: '800',
-    marginBottom: 12,
+  onboardingEmojiBg: {
+    width: 120,
+    height: 120,
+    borderRadius: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
   },
-  logoTitle: {
-    color: '#f8fafc',
-    fontSize: 30,
-    fontWeight: '800',
+  onboardingEmoji: {
+    fontSize: 60,
   },
-  onboardingCard: {
-    backgroundColor: '#0b1727',
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: '#1d3557',
-    padding: 24,
+  onboardingLogoText: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#ffffff',
+    letterSpacing: -0.5,
+  },
+  onboardingCardWrap: {
+    backgroundColor: '#0f1729',
+    borderRadius: 28,
+    padding: 28,
     width: '100%',
+    borderWidth: 1,
+    borderColor: '#1e3a5f',
   },
-  onboardingStep: {
-    color: '#86efac',
-    fontSize: 12,
+  onboardingCounter: {
+    color: '#64748b',
+    fontSize: 13,
     fontWeight: '700',
-    letterSpacing: 2,
+    letterSpacing: 1,
+    marginBottom: 16,
+  },
+  onboardingHeading: {
+    fontSize: 32,
+    fontWeight: '900',
+    color: '#ffffff',
     marginBottom: 8,
   },
-  onboardingTitle: {
-    color: '#f8fafc',
-    fontSize: 26,
-    fontWeight: '800',
-    marginBottom: 10,
+  onboardingSubheading: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#10b981',
+    marginBottom: 12,
   },
   onboardingBody: {
-    color: '#cbd5e1',
     fontSize: 15,
+    color: '#cbd5e1',
     lineHeight: 22,
+    marginBottom: 24,
   },
   onboardingDots: {
     flexDirection: 'row',
+    justifyContent: 'center',
     gap: 8,
-    marginTop: 20,
-    marginBottom: 18,
+    marginBottom: 28,
   },
-  dot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+  onboardingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: '#334155',
   },
-  dotActive: {
-    backgroundColor: '#22c55e',
-    width: 22,
+  onboardingDotActive: {
+    width: 24,
+    backgroundColor: '#10b981',
   },
-  onboardingActions: {
-    gap: 12,
-  },
-  textButton: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  textButtonText: {
-    color: '#93c5fd',
-    fontWeight: '700',
-  },
-  heroCard: {
-    backgroundColor: '#0b1727',
-    borderRadius: 24,
-    borderWidth: 1,
-    borderColor: '#1d3557',
-    padding: 20,
-    marginBottom: 18,
-  },
-  kicker: {
-    color: '#86efac',
-    fontSize: 11,
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    fontWeight: '700',
-  },
-  title: {
-    color: '#f8fafc',
-    fontSize: 30,
-    fontWeight: '800',
-    marginTop: 8,
-  },
-  subtitle: {
-    color: '#cbd5e1',
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 8,
-  },
-  searchRow: {
-    marginTop: 18,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  input: {
-    flex: 1,
-    backgroundColor: '#0f1d2e',
-    borderWidth: 1,
-    borderColor: '#334155',
-    borderRadius: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: '#f8fafc',
-    fontSize: 15,
-  },
-  inputArea: {
-    backgroundColor: '#0f1d2e',
-    borderWidth: 1,
-    borderColor: '#334155',
+  onboardingPrimaryBtn: {
     borderRadius: 14,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    color: '#f8fafc',
-    minHeight: 96,
-    textAlignVertical: 'top',
+    paddingVertical: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginBottom: 12,
   },
-  primaryButton: {
-    backgroundColor: '#22c55e',
-    borderRadius: 12,
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-  },
-  primaryButtonText: {
-    color: '#06210d',
+  onboardingPrimaryBtnText: {
+    color: '#ffffff',
     fontWeight: '800',
-    fontSize: 14,
+    fontSize: 16,
   },
-  summaryRow: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 18,
+  onboardingSecondaryBtn: {
+    borderRadius: 14,
+    paddingVertical: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: '#334155',
   },
-  metricCard: {
-    flex: 1,
-    backgroundColor: '#0f172a',
+  onboardingSecondaryBtnText: {
+    color: '#cbd5e1',
+    fontWeight: '700',
+    fontSize: 15,
+  },
+  heroGradient: {
+    backgroundColor: '#1a3a52',
+    borderRadius: 24,
+    padding: 24,
+    marginBottom: 20,
     borderWidth: 1,
-    borderRadius: 16,
-    padding: 14,
+    borderColor: '#2d5a7b',
   },
-  metricLabel: {
-    color: '#a8b3c7',
-    fontSize: 11,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  metricValue: {
-    fontSize: 22,
+  heroLabel: {
+    color: '#64b5f6',
+    fontSize: 13,
     fontWeight: '800',
-    marginTop: 8,
+    letterSpacing: 1.2,
+    marginBottom: 8,
   },
-  quickActionRow: {
+  heroTitle: {
+    color: '#ffffff',
+    fontSize: 32,
+    fontWeight: '900',
+    marginBottom: 6,
+  },
+  heroCaption: {
+    color: '#b0bec5',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  searchBox: {
     flexDirection: 'row',
     gap: 10,
-    marginBottom: 18,
+    marginBottom: 20,
   },
-  quickAction: {
+  searchInputWrap: {
     flex: 1,
-    backgroundColor: '#0f172a',
+  },
+  searchInput: {
+    backgroundColor: '#0f1729',
     borderRadius: 14,
     borderWidth: 1,
-    padding: 12,
+    borderColor: '#1e3a5f',
+    paddingHorizontal: 16,
+    paddingVertical: 13,
+    color: '#ffffff',
+    fontWeight: '600',
+    fontSize: 15,
   },
-  quickActionLabel: {
-    color: '#a8b3c7',
-    fontSize: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  quickActionValue: {
-    fontSize: 14,
-    fontWeight: '700',
-    marginTop: 5,
-  },
-  scorePanel: {
-    backgroundColor: '#0f172a',
-    borderRadius: 18,
-    borderWidth: 1,
-    borderColor: '#1e293b',
-    padding: 18,
-    marginBottom: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 16,
-  },
-  scoreRing: {
-    width: 98,
-    height: 98,
-    borderRadius: 49,
-    backgroundColor: '#08141d',
-    borderWidth: 10,
-    borderColor: '#22c55e',
+  searchBtn: {
+    backgroundColor: '#10b981',
+    borderRadius: 14,
+    paddingHorizontal: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  scoreRingText: {
-    color: '#f8fafc',
+  searchBtnText: {
+    color: '#ffffff',
     fontSize: 24,
-    fontWeight: '800',
   },
-  scoreInfo: {
-    flex: 1,
-  },
-  barChart: {
+  metricsRow: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    height: 110,
-    marginTop: 8,
+    gap: 12,
+    marginBottom: 20,
   },
-  barWrap: {
+  metricCard: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    height: '100%',
-  },
-  bar: {
-    width: 12,
-    borderRadius: 8,
-    backgroundColor: '#22c55e',
-    minHeight: 18,
-  },
-  barLabel: {
-    color: '#a8b3c7',
-    fontSize: 10,
-    marginTop: 8,
-  },
-  actionCard: {
-    backgroundColor: '#0b1727',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: '#1d3557',
+    backgroundColor: '#0f1729',
+    borderRadius: 18,
     padding: 14,
-    marginTop: 12,
-  },
-  actionHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    borderWidth: 2,
     alignItems: 'center',
   },
-  actionPriority: {
-    color: '#86efac',
-    fontSize: 12,
-    fontWeight: '800',
+  metricEmoji: {
+    fontSize: 28,
+    marginBottom: 6,
   },
-  actionDifficulty: {
-    color: '#93c5fd',
+  metricNumber: {
+    fontSize: 24,
+    fontWeight: '900',
+    marginBottom: 2,
+  },
+  metricLabel: {
     fontSize: 11,
     fontWeight: '700',
-    textTransform: 'uppercase',
+    color: '#94a3b8',
   },
-  actionTitle: {
-    color: '#f8fafc',
-    fontSize: 17,
-    fontWeight: '700',
-    marginTop: 8,
-    marginBottom: 6,
+  scoreCard: {
+    backgroundColor: 'linear-gradient(135deg, #0f1729 0%, #1a3a52 100%)',
+    borderRadius: 24,
+    padding: 20,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#1e3a5f',
+    flexDirection: 'row',
+    gap: 16,
   },
-  noteCard: {
-    backgroundColor: '#121d2b',
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 14,
+  scoreCircle: {
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    backgroundColor: '#051330',
+    borderWidth: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  noteText: {
-    color: '#dfeaf5',
+  scoreNumber: {
+    fontSize: 36,
+    fontWeight: '900',
+    color: '#10b981',
+  },
+  scoreLabel: {
     fontSize: 12,
-    marginBottom: 6,
-    lineHeight: 18,
+    fontWeight: '700',
+    color: '#64748b',
   },
-  card: {
-    backgroundColor: '#0f172a',
-    borderRadius: 18,
+  scoreTextWrap: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  scoreTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#ffffff',
+    marginBottom: 6,
+  },
+  scoreDesc: {
+    fontSize: 13,
+    color: '#cbd5e1',
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  scoreHint: {
+    fontSize: 12,
+    color: '#10b981',
+    fontWeight: '600',
+  },
+  solarChartCard: {
+    backgroundColor: '#0f1729',
+    borderRadius: 20,
     padding: 18,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: '#1e3a5f',
   },
-  sectionTitle: {
-    color: '#f8fafc',
-    fontSize: 18,
+  cardHeader: {
+    marginBottom: 16,
+  },
+  cardTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#ffffff',
+  },
+  cardValue: {
+    fontSize: 24,
+    fontWeight: '900',
+    color: '#f59e0b',
+    marginTop: 4,
+  },
+  solarChart: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    height: 140,
+    gap: 6,
+  },
+  barGroup: {
+    flex: 1,
+    alignItems: 'center',
+    height: '100%',
+  },
+  solarBar: {
+    width: '100%',
+    borderRadius: 8,
+    minHeight: 8,
+  },
+  monthLabel: {
+    fontSize: 10,
     fontWeight: '700',
-    marginBottom: 8,
+    color: '#64748b',
+    marginTop: 6,
   },
-  bodyText: {
-    color: '#dfeaf5',
+  energyCard: {
+    backgroundColor: '#0f1729',
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#1e3a5f',
+  },
+  gridStatus: {
+    marginTop: 12,
+  },
+  gridBadgelow: {
+    color: '#10b981',
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 10,
+  },
+  gridBadgemoderate: {
+    color: '#f59e0b',
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 10,
+  },
+  gridBadgehigh: {
+    color: '#ef4444',
+    fontSize: 12,
+    fontWeight: '800',
+    marginBottom: 10,
+  },
+  gridText: {
+    color: '#cbd5e1',
     fontSize: 14,
     lineHeight: 20,
-    marginBottom: 5,
   },
-  scoreValue: {
-    color: '#34d399',
-    fontSize: 38,
-    fontWeight: '800',
-    marginBottom: 8,
+  locationCard: {
+    backgroundColor: '#0f1729',
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#1e3a5f',
   },
-  metaText: {
-    color: '#93c5fd',
-    fontSize: 13,
+  locationValue: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#ffffff',
     marginTop: 8,
   },
-  secondaryButton: {
-    backgroundColor: '#2563eb',
-    borderRadius: 12,
+  locationRegion: {
+    fontSize: 14,
+    color: '#94a3b8',
+    marginTop: 4,
+  },
+  screenHeader: {
+    marginBottom: 18,
+  },
+  screenTitle: {
+    fontSize: 28,
+    fontWeight: '900',
+    color: '#ffffff',
+  },
+  detailsCard: {
+    backgroundColor: '#0f1729',
+    borderRadius: 20,
+    padding: 18,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#1e3a5f',
+  },
+  detailRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingVertical: 12,
-    alignItems: 'center',
   },
-  secondaryButtonText: {
-    color: '#eff6ff',
+  detailLabel: {
+    fontSize: 14,
     fontWeight: '700',
+    color: '#94a3b8',
   },
-  errorCard: {
-    backgroundColor: '#7f1d1d',
-    borderRadius: 12,
+  detailValue: {
+    fontSize: 18,
+    fontWeight: '900',
+    color: '#ffffff',
+  },
+  carbonlow: {
+    color: '#10b981',
+  },
+  carbonmoderate: {
+    color: '#f59e0b',
+  },
+  carbonhigh: {
+    color: '#ef4444',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#1e3a5f',
+  },
+  detailDesc: {
+    paddingVertical: 12,
+    fontSize: 14,
+    color: '#cbd5e1',
+    lineHeight: 20,
+  },
+  advisorInput: {
+    backgroundColor: '#051330',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#1e3a5f',
     padding: 14,
-    marginBottom: 14,
+    color: '#ffffff',
+    minHeight: 100,
+    textAlignVertical: 'top',
+    marginBottom: 12,
   },
-  errorText: {
-    color: '#fee2e2',
-    fontWeight: '600',
-  },
-  loadingCard: {
-    backgroundColor: '#0f172a',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 14,
+  askBtn: {
+    backgroundColor: '#f59e0b',
+    borderRadius: 14,
+    paddingVertical: 14,
+    justifyContent: 'center',
     alignItems: 'center',
+    marginBottom: 12,
   },
-  loadingText: {
-    color: '#dfeaf5',
+  askBtnText: {
+    color: '#ffffff',
+    fontWeight: '800',
+    fontSize: 15,
+  },
+  answerBox: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#10b981',
+    padding: 14,
     marginTop: 12,
-    textAlign: 'center',
   },
   answerText: {
-    color: '#e2e8f0',
+    color: '#cbd5e1',
     fontSize: 14,
     lineHeight: 20,
-    marginTop: 12,
   },
-  tabBar: {
-    position: 'absolute',
-    bottom: 18,
-    left: 18,
-    right: 18,
-    backgroundColor: '#0f172a',
-    borderRadius: 18,
+  actionItem: {
+    backgroundColor: '#0f1729',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#1e293b',
+    borderColor: '#1e3a5f',
+  },
+  actionHeader: {
+    marginBottom: 10,
+  },
+  actionTitle: {
+    fontSize: 16,
+    fontWeight: '800',
+    color: '#ffffff',
+    marginBottom: 8,
+  },
+  actionTags: {
     flexDirection: 'row',
-    padding: 8,
+    gap: 8,
   },
-  tabItem: {
-    flex: 1,
-    paddingVertical: 10,
-    alignItems: 'center',
-    borderRadius: 12,
+  actionTag: {
+    backgroundColor: '#1e3a5f',
+    color: '#64b5f6',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    fontSize: 11,
+    fontWeight: '700',
   },
-  tabItemActive: {
-    backgroundColor: '#1d4ed8',
-  },
-  tabLabel: {
+  actionDesc: {
     color: '#cbd5e1',
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 8,
+  },
+  actionNext: {
+    color: '#10b981',
     fontSize: 12,
     fontWeight: '700',
   },
-  tabLabelActive: {
-    color: '#f8fafc',
+  notesBox: {
+    backgroundColor: '#0f1729',
+    borderRadius: 16,
+    padding: 14,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#1e3a5f',
+  },
+  noteItem: {
+    color: '#cbd5e1',
+    fontSize: 13,
+    lineHeight: 18,
+    marginBottom: 6,
+  },
+  emptyCard: {
+    backgroundColor: '#0f1729',
+    borderRadius: 20,
+    padding: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#1e3a5f',
+  },
+  empytText: {
+    color: '#94a3b8',
+    fontSize: 15,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  errorBox: {
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#ef4444',
+    padding: 12,
+    marginBottom: 12,
+  },
+  errorMsg: {
+    color: '#fca5a5',
+    fontWeight: '600',
+    fontSize: 14,
+  },
+  loadingBox: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#10b981',
+    padding: 18,
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  loadingMsg: {
+    color: '#a7f3d0',
+    fontWeight: '600',
+    marginTop: 10,
+  },
+  tabBarContainer: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#0a0e27',
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    paddingBottom: 20,
+  },
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#0f1729',
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#1e3a5f',
+    padding: 6,
+  },
+  tabItem: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 12,
+  },
+  tabItemActive: {
+    backgroundColor: '#1e293b',
+  },
+  tabIcon: {
+    fontSize: 18,
+    marginBottom: 2,
+  },
+  tabItemLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#64748b',
+  },
+  tabItemLabelActive: {
+    color: '#10b981',
   },
 });
