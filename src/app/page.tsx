@@ -55,11 +55,11 @@ export default function LocationScreen() {
       
       try {
         const propsRes = await fetch(
-          `/api/postcodes/properties?postcode=${encodeURIComponent(location.postcodeOutward)}`
+          `/api/location/autocomplete?postcode=${encodeURIComponent(postcode.trim())}`
         );
         const propsData = await propsRes.json();
         
-        if (propsRes.ok && propsData.ok && propsData.properties && propsData.properties.length > 0) {
+        if (propsRes.ok && propsData.ok && Array.isArray(propsData.properties) && propsData.properties.length > 0) {
           setState({
             status: "selecting_property",
             location,
@@ -163,10 +163,10 @@ export default function LocationScreen() {
 
             <button
               type="submit"
-              disabled={state.status === "loading"}
+              disabled={false}
               className="primary-button"
             >
-              {state.status === "loading" ? "Checking…" : "Get my recommendations"}
+              Get my recommendations
             </button>
           </form>
         )}
