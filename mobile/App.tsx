@@ -12,7 +12,7 @@ import {
   View,
 } from 'react-native';
 
-type TabKey = 'overview' | 'solar' | 'energy' | 'advisor';
+type TabKey = 'overview' | 'solar' | 'energy' | 'advisor' | 'plan';
 
 type LocationData = {
   latitude: number;
@@ -57,12 +57,25 @@ type GreenScoreData = {
   opportunities?: string[];
 };
 
+type ActionPlanItem = {
+  id: string;
+  title: string;
+  explanation: string;
+  impactCategory: string;
+  difficulty: string;
+  confidence: string;
+  priority: number;
+  suggestedNextStep?: string;
+};
+
 type AnalysisState = {
   location?: LocationData;
   solar?: SolarData;
   energy?: EnergyData;
   green?: GreenScoreData;
   advisorAnswer?: string;
+  actionPlan?: ActionPlanItem[];
+  actionPlanNotes?: string[];
 };
 
 const API_BASE = Platform.OS === 'android' ? 'http://10.0.2.2:3000' : 'http://localhost:3000';
@@ -184,11 +197,28 @@ export default function App() {
         }),
       });
 
+      const actionPlanResponse = await apiFetch<{
+        ok: true;
+        actionPlan: { actions: ActionPlanItem[]; notes: string[] };
+      }>('/api/action-plan/generate', {
+        method: 'POST',
+        body: JSON.stringify({
+          greenScore: greenResponse.greenScore,
+          solarScore: {
+            annualGenerationKwh: solarResponse.solarAssessment.annualGenerationKwh,
+            annualIrradiationKwhPerM2: solarResponse.solarAssessment.annualIrradiationKwhPerM2,
+          },
+          energyNow: energyResponse.energyNow,
+        }),
+      });
+
       setAnalysis({
         location,
         solar: solarResponse.solarAssessment,
         energy: energyResponse.energyNow,
         green: greenResponse.greenScore,
+        actionPlan: actionPlanResponse.actionPlan.actions,
+        actionPlanNotes: actionPlanResponse.actionPlan.notes,
       });
     } catch (caughtError) {
       const message = caughtError instanceof Error ? caughtError.message : 'Could not analyse this postcode.';
@@ -431,11 +461,40 @@ export default function App() {
     </>
   );
 
-  const renderContent = () => {
-    if (showOnboarding) {
-      return renderOnboarding();
-    }
+  const renderPlan = () => (
+    <>
+      <View style={styles.card}>
+        <Text style={styles.sectionTitle}>Action plan</Text>
+        {analysis.actionPlan && analysis.actionPlan.length > 0 ? (
+          analysis.actionPlan.map((item) => (
+            <View key={item.id} style={styles.actionCard}>
+              <View style={styles.actionHeaderRow}>
+                <Text style={styles.actionPriority}>P{item.priority}</Text>
+                <Text style={styles.actionDifficulty}>{item.difficulty}</Text>
+              </View>
+              <Text style={styles.actionTitle}>{item.title}</Text>
+              <Text style={styles.bodyText}>{item.explanation}</Text>
+              {item.suggestedNextStep ? (
+                <Text style={styles.metaText}>Next step: {item.suggestedNextStep}</Text>
+              ) : null}
+            </View>
+          ))
+        ) : (
+          <Text style={styles.bodyText}>No high-confidence actions were identified yet. Try another postcode or check your home profile later.</Text>
+        )}
 
+        {analysis.actionPlanNotes && analysis.actionPlanNotes.length > 0 ? (
+          <View style={styles.noteCard}>
+            {analysis.actionPlanNotes.map((note) => (
+              <Text key={note} style={styles.noteText}>• {note}</Text>
+            ))}
+          </View>
+        ) : null}
+      </View>
+    </>
+  );
+
+  const renderContent = () => {
     switch (activeTab) {
       case 'solar':
         return renderSolar();
@@ -443,6 +502,8 @@ export default function App() {
         return renderEnergy();
       case 'advisor':
         return renderAdvisor();
+      case 'plan':
+        return renderPlan();
       default:
         return renderOverview();
     }
@@ -484,6 +545,7 @@ export default function App() {
           { key: 'overview', label: 'Home' },
           { key: 'solar', label: 'Solar' },
           { key: 'energy', label: 'Energy' },
+          { key: 'plan', label: 'Plan' },
           { key: 'advisor', label: 'Advisor' },
         ].map((tab) => {
           const isActive = activeTab === tab.key;
@@ -684,6 +746,29 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginTop: 8,
   },
+  quickActionRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginBottom: 18,
+  },
+  quickAction: {
+    flex: 1,
+    backgroundColor: '#0f172a',
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 12,
+  },
+  quickActionLabel: {
+    color: '#a8b3c7',
+    fontSize: 10,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  quickActionValue: {
+    fontSize: 14,
+    fontWeight: '700',
+    marginTop: 5,
+  },
   scorePanel: {
     backgroundColor: '#0f172a',
     borderRadius: 18,
@@ -713,28 +798,72 @@ const styles = StyleSheet.create({
   scoreInfo: {
     flex: 1,
   },
-  quickActionRow: {
+  barChart: {
     flexDirection: 'row',
-    gap: 10,
-    marginBottom: 18,
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    height: 110,
+    marginTop: 8,
   },
-  quickAction: {
+  barWrap: {
     flex: 1,
-    backgroundColor: '#0f172a',
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 12,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    height: '100%',
   },
-  quickActionLabel: {
+  bar: {
+    width: 12,
+    borderRadius: 8,
+    backgroundColor: '#22c55e',
+    minHeight: 18,
+  },
+  barLabel: {
     color: '#a8b3c7',
     fontSize: 10,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+    marginTop: 8,
   },
-  quickActionValue: {
-    fontSize: 14,
+  actionCard: {
+    backgroundColor: '#0b1727',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: '#1d3557',
+    padding: 14,
+    marginTop: 12,
+  },
+  actionHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  actionPriority: {
+    color: '#86efac',
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  actionDifficulty: {
+    color: '#93c5fd',
+    fontSize: 11,
     fontWeight: '700',
-    marginTop: 5,
+    textTransform: 'uppercase',
+  },
+  actionTitle: {
+    color: '#f8fafc',
+    fontSize: 17,
+    fontWeight: '700',
+    marginTop: 8,
+    marginBottom: 6,
+  },
+  noteCard: {
+    backgroundColor: '#121d2b',
+    borderRadius: 12,
+    padding: 12,
+    marginTop: 14,
+  },
+  noteText: {
+    color: '#dfeaf5',
+    fontSize: 12,
+    marginBottom: 6,
+    lineHeight: 18,
   },
   card: {
     backgroundColor: '#0f172a',
@@ -833,29 +962,5 @@ const styles = StyleSheet.create({
   },
   tabLabelActive: {
     color: '#f8fafc',
-  },
-  barChart: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
-    height: 110,
-    marginTop: 8,
-  },
-  barWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    height: '100%',
-  },
-  bar: {
-    width: 12,
-    borderRadius: 8,
-    backgroundColor: '#22c55e',
-    minHeight: 18,
-  },
-  barLabel: {
-    color: '#a8b3c7',
-    fontSize: 10,
-    marginTop: 8,
   },
 });
