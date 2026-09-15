@@ -2,35 +2,45 @@
 
 import { useState } from "react";
 
+interface LocationData {
+  latitude: number;
+  longitude: number;
+  adminDistrict: string | null;
+  region: string | null;
+  postcodeOutward: string;
+}
+
+interface PropertyOption {
+  id: string;
+  formatted: string;
+}
+
 type ScreenState =
   | { status: "idle" }
-  | { status: "loading" }
-  | {
-      status: "success";
-      location: {
-        latitude: number;
-        longitude: number;
-        adminDistrict: string | null;
-        region: string | null;
-        postcodeOutward: string;
-      };
-    }
+  | { status: "loading"; step?: string }
+  | { status: "postcode_resolved"; location: LocationData }
+  | { status: "selecting_property"; location: LocationData; properties: PropertyOption[] }
+  | { status: "property_selected"; location: LocationData; property: PropertyOption }
   | { status: "error"; message: string };
 
 export default function LocationScreen() {
   const [postcode, setPostcode] = useState("");
+  const [selectedProperty, setSelectedProperty] = useState("");
   const [state, setState] = useState<ScreenState>({ status: "idle" });
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handlePostcodeSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setState({ status: "loading" });
+    setState({ status: "loading", step: "Resolving postcode..." });
+
     try {
       const res = await fetch("/api/location/resolve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ postcode }),
       });
+
       const data = await res.json();
+
       if (!res.ok || !data.ok) {
         setState({
           status: "error",
@@ -38,7 +48,37 @@ export default function LocationScreen() {
         });
         return;
       }
-      setState({ status: "success", location: data.location });
+
+      const location = data.location;
+      
+      setState({ status: "loading", step: "Finding properties in this area..." });
+      
+      try {
+        const propsRes = await fetch(
+          `/api/postcodes/properties?postcode=${encodeURIComponent(location.postcodeOutward)}`
+        );
+        const propsData = await propsRes.json();
+        
+        if (propsRes.ok && propsData.ok && propsData.properties && propsData.properties.length > 0) {
+          setState({
+            status: "selecting_property",
+            location,
+            properties: propsData.properties,
+          });
+        } else {
+          setState({
+            status: "property_selected",
+            location,
+            property: { id: location.postcodeOutward, formatted: location.postcodeOutward },
+          });
+        }
+      } catch {
+        setState({
+          status: "property_selected",
+          location,
+          property: { id: location.postcodeOutward, formatted: location.postcodeOutward },
+        });
+      }
     } catch {
       setState({
         status: "error",
@@ -47,45 +87,110 @@ export default function LocationScreen() {
     }
   }
 
+  async function handlePropertySelect(e: React.FormEvent) {
+    e.preventDefault();
+    if (state.status !== "selecting_property" || !selectedProperty) return;
+
+    const property = state.properties.find((p) => p.id === selectedProperty);
+    if (!property) return;
+
+    setState({
+      status: "property_selected",
+      location: state.location,
+      property,
+    });
+  }
+
+  function handleReset() {
+    setPostcode("");
+    setSelectedProperty("");
+    setState({ status: "idle" });
+  }
+
   return (
-    <main style={{ maxWidth: 480, margin: "4rem auto", fontFamily: "system-ui" }}>
-      <h1>CleanTech Advisor</h1>
-      <p>Enter your UK postcode to get started.</p>
+    <main className="location-page">
+      <div className="ambient ambient-one" aria-hidden="true" />
+      <div className="ambient ambient-two" aria-hidden="true" />
 
-      <form onSubmit={handleSubmit}>
-        <input
-          value={postcode}
-          onChange={(e) => setPostcode(e.target.value)}
-          placeholder="e.g. SW1A 1AA"
-          aria-label="UK postcode"
-          style={{ padding: "0.5rem", fontSize: "1rem", width: "100%" }}
-        />
-        <button
-          type="submit"
-          disabled={state.status === "loading"}
-          style={{ marginTop: "0.75rem", padding: "0.5rem 1rem" }}
-        >
-          {state.status === "loading" ? "Checking…" : "Continue"}
-        </button>
-      </form>
+      <section className="location-card">
+        <div className="brand-wrap">
+          <div className="brand">
+            <span className="brand-mark" aria-hidden="true" />
+            CleanTech Advisor
+          </div>
+        </div>
 
-      {state.status === "error" && (
-        <p role="alert" style={{ color: "#b91c1c", marginTop: "1rem" }}>
-          {state.message}
-        </p>
-      )}
-
-      {state.status === "success" && (
-        <div style={{ marginTop: "1rem" }}>
-          <p>
-            Location found: <strong>{state.location.postcodeOutward}</strong>
-            {state.location.region ? `, ${state.location.region}` : ""}
-          </p>
-          <p style={{ color: "#555", fontSize: "0.9rem" }}>
-            We&apos;ll use this to look up solar and electricity data for your area.
+        <div className="hero-copy">
+          <p className="eyebrow">Smarter homes. Cleaner energy.</p>
+          <h1 className="location-title">See your home&apos;s energy potential.</h1>
+          <p className="location-subtitle">
+            Discover solar opportunities, energy efficiency upgrades, and the smartest next step for your property.
           </p>
         </div>
-      )}
+
+        <div className="stats-row" aria-label="Key benefits">
+          <div className="stat-pill">
+            <strong>Solar</strong>
+            <span>Optimised</span>
+          </div>
+          <div className="stat-pill">
+            <strong>Carbon</strong>
+            <span>Lowered</span>
+          </div>
+          <div className="stat-pill">
+            <strong>Savings</strong>
+            <span>Forecasted</span>
+          </div>
+        </div>
+
+        <form onSubmit={handleSubmit} className="location-form">
+          <div className="input-shell">
+            <label htmlFor="postcode" className="sr-only">
+              Enter your UK postcode
+            </label>
+            <input
+              id="postcode"
+              value={postcode}
+              onChange={(e) => setPostcode(e.target.value)}
+              placeholder="Enter your UK postcode"
+              aria-label="UK postcode"
+              className="location-input"
+            />
+          </div>
+
+          <button
+            type="submit"
+            disabled={state.status === "loading"}
+            className="primary-button"
+          >
+            {state.status === "loading" ? "Checking…" : "Get my recommendations"}
+          </button>
+        </form>
+
+        {state.status === "error" && (
+          <div className="error-panel" role="alert">
+            <p className="error-text">{state.message}</p>
+          </div>
+        )}
+
+        {state.status === "success" && (
+          <div className="success-panel">
+            <p className="status-text">
+              Location found: <strong>{state.location.postcodeOutward}</strong>
+              {state.location.region ? `, ${state.location.region}` : ""}
+            </p>
+            <p className="inline-note">
+              We&apos;ll use this to look up solar and electricity data for your area.
+            </p>
+          </div>
+        )}
+
+        {state.status !== "success" && (
+          <p className="mini-note">
+            Live recommendations for <strong>HG3</strong>, Yorkshire and The Humber.
+          </p>
+        )}
+      </section>
     </main>
   );
 }
